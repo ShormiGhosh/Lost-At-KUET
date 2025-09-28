@@ -82,7 +82,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-      home: LoginScreen(),
+      home: SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -136,7 +136,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               SizedBox(height: 20),
               Text(
-                "Sign Up!",
+                "Sign Up",
                 style: TextStyle(
                   fontSize: 40,
                   color: Color(0xFF292929),
@@ -201,7 +201,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SplashScreen(),
+                          builder: (context) => LoginScreen(),
                         ),
                       );
                     },

@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 opacity: textAnimationFlag ? 1.0 : 0.0,
                 duration: Duration(milliseconds: 500),
                 child: Text(
-                  "Lost @ KUET!",
+                  "Lost @ KUET",
                   style: TextStyle(
                     fontSize: 35,
                     color: Color(0xFF292929),

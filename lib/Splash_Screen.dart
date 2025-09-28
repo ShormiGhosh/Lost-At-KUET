@@ -21,9 +21,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
-    // Slower zoom animation (2.5 seconds)
+    // Slower zoom animation (1.5 seconds)
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
@@ -35,19 +35,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   void _startAnimationSequence() async {
-    // Wait before starting zoom
-    await Future.delayed(const Duration(milliseconds: 800));
+    // Wait for 500ms before starting zoom
+    await Future.delayed(const Duration(milliseconds: 500));
     _controller.forward();
 
-    // Start typewriter after zoom (~3.3s mark)
-    await Future.delayed(const Duration(milliseconds: 2500));
+    // Start typewriter after zoom (at 2s mark)
+    await Future.delayed(const Duration(milliseconds: 1500));
     _startTypewriter();
 
-    // Show tagline after typewriter (~6s mark)
-    await Future.delayed(const Duration(milliseconds: 2500));
+    // Show tagline after typewriter (at 3.5s mark)
+    await Future.delayed(const Duration(milliseconds: 1500));
     _fadeInTagline();
 
-    // Navigate after full duration (~7.5s mark)
+    // Navigate after full duration (at 5s mark)
     await Future.delayed(const Duration(milliseconds: 1500));
     if (mounted) {
       Navigator.of(context).pushReplacement(
@@ -62,8 +62,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         setState(() {
           displayText = fullText.substring(0, i);
         });
-        // Slower typing speed (200ms per character)
-        await Future.delayed(const Duration(milliseconds: 200));
+        // Slower typing speed (150ms per character)
+        await Future.delayed(const Duration(milliseconds: 70));
       }
     }
   }
@@ -72,11 +72,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     setState(() {
       showTagline = true;
     });
-    Timer.periodic(const Duration(milliseconds: 120), (timer) {
+    Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (mounted) {
         setState(() {
           if (taglineOpacity < 1.0) {
-            taglineOpacity += 0.04; // Smooth fade-in
+            taglineOpacity += 0.05; // Slower fade-in
           } else {
             timer.cancel();
           }
@@ -112,7 +112,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               displayText,
               style: const TextStyle(
                 fontSize: 32,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w900,
                 color: Color(0xFF292929),
               ),
             ),
@@ -120,7 +120,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             if (showTagline)
               AnimatedOpacity(
                 opacity: taglineOpacity,
-                duration: const Duration(milliseconds: 100),
+                duration: const Duration(milliseconds: 500),
                 child: const Text(
                   "Because even small things deserve to be found.",
                   style: TextStyle(
