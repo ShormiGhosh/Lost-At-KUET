@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'home_screen.dart';
 import 'main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,6 +13,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool flag = false;
   bool textAnimationFlag = false;
+  bool isLoading = false;
+
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool isPasswordVisible = false;
+
+  final supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -28,9 +36,69 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  var usernameController = TextEditingController();
-  var passController = TextEditingController();
-  bool isPasswordVisible = false;
+  Future<void> _signIn() async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter both email and password')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final AuthResponse response = await supabase.auth.signInWithPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      if (response.user != null) {
+        // Successfully logged in - navigate to home screen
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+              (route) => false,
+        );
+      }
+    } on AuthException catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred during login')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+  Future<void> _resetPassword() async {
+    if (emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter your email address')),
+      );
+      return;
+    }
+
+    try {
+      await supabase.auth.resetPasswordForEmail(emailController.text.trim());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Password reset email sent!')),
+      );
+    } on AuthException catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send reset email')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 opacity: textAnimationFlag ? 1.0 : 0.0,
                 duration: Duration(milliseconds: 500),
                 child: Text(
-                  "Lost @ KUET!",
+                  "Lost @ KUET",
                   style: TextStyle(
                     fontSize: 35,
                     color: Color(0xFF292929),
@@ -70,16 +138,17 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               Spacer(flex: 1),
               TextField(
-                controller: usernameController,
+                controller: emailController,
                 decoration: InputDecoration(
-                  hintText: 'Username',
+                  hintText: 'Email',
                   hintStyle: TextStyle(color: Color(0xFF585858)),
-                  prefixIcon: Icon(Icons.person_outline),
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
+                keyboardType: TextInputType.emailAddress,
               ),
               SizedBox(height: 30),
               TextField(
-                controller: passController,
+                controller: passwordController,
                 obscureText: !isPasswordVisible,
                 decoration: InputDecoration(
                   hintText: 'Password',
@@ -99,14 +168,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 30),
+              SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _resetPassword,
+                  child: Text('Forgot Password?'),
+                ),
+              ),
+              SizedBox(height: 20),
               SizedBox(
                 width: 100,
                 child: ElevatedButton(
-                  child: Text("Login"),
-                  onPressed: () async {
-                    // ... existing login logic ...
-                  },
+                  onPressed: isLoading ? null : _signIn,
+                  child: isLoading
+                      ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF292929)),
+                    ),
+                  )
+                      : Text("Login"),
                 ),
               ),
               SizedBox(height: 10),

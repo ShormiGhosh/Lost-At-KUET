@@ -2,87 +2,87 @@ import 'dart:async';
 
 import 'package:LostAtKuet/Login_screen.dart';
 import 'package:flutter/material.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'Login_screen.dart';
 import 'Splash_Screen.dart';
+import 'supabase_config.dart';
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
+  // Initialize Supabase with your actual credentials
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
+  );
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key}); // Default value for userId
+  const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Lost @ KUET',
-        theme: ThemeData(
-        // Base colors
-        scaffoldBackgroundColor: Color(0xFFFFFFFF), // White background
-    colorScheme: ColorScheme(
-    brightness: Brightness.light,
-    primary: Color(0xFFFFC815), // Yellow
-    onPrimary: Color(0xFF292929), // Dark grey text on yellow
-    secondary: Color(0xFF585858), // Light grey
-    onSecondary: Color(0xFFFFFFFF), // White text on light grey
-    surface: Color(0xFFFFFFFF), // White
-    onSurface: Color(0xFF292929), // Dark grey
-    background: Color(0xFFFFFFFF), // White
-    onBackground: Color(0xFF292929), // Dark grey
-    error: Colors.red,
-    onError: Color(0xFFFFFFFF),
-    ),
-          // Text theme
-          textTheme: TextTheme(
-            titleLarge: TextStyle(
-              color: Color(0xFF292929),
-              fontWeight: FontWeight.bold,
-            ),
-            bodyLarge: TextStyle(color: Color(0xFF292929)),
-            bodyMedium: TextStyle(color: Color(0xFF585858)),
+      theme: ThemeData(
+        scaffoldBackgroundColor: Color(0xFFFFFFFF),
+        colorScheme: ColorScheme(
+          brightness: Brightness.light,
+          primary: Color(0xFFFFC815),
+          onPrimary: Color(0xFF292929),
+          secondary: Color(0xFF585858),
+          onSecondary: Color(0xFFFFFFFF),
+          surface: Color(0xFFFFFFFF),
+          onSurface: Color(0xFF292929),
+          background: Color(0xFFFFFFFF),
+          onBackground: Color(0xFF292929),
+          error: Colors.red,
+          onError: Color(0xFFFFFFFF),
+        ),
+        textTheme: TextTheme(
+          titleLarge: TextStyle(
+            color: Color(0xFF292929),
+            fontWeight: FontWeight.bold,
           ),
-
-          // Input decoration theme
-          inputDecorationTheme: InputDecorationTheme(
-            prefixIconColor: Color(0xFFFFC815),
-            suffixIconColor: Color(0xFFFFC815),
-            labelStyle: TextStyle(color: Color(0xFF585858)),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10.0),
-              borderSide: BorderSide(
-                color: Color(0xFFFFC815),
-                width: 2.0,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10.0),
-              borderSide: BorderSide(
-                color: Color(0xFF585858),
-                width: 1.0,
-              ),
+          bodyLarge: TextStyle(color: Color(0xFF292929)),
+          bodyMedium: TextStyle(color: Color(0xFF585858)),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          prefixIconColor: Color(0xFFFFC815),
+          suffixIconColor: Color(0xFFFFC815),
+          labelStyle: TextStyle(color: Color(0xFF585858)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10.0),
+            borderSide: BorderSide(
+              color: Color(0xFFFFC815),
+              width: 2.0,
             ),
           ),
-
-          // Elevated button theme
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFFFFC815),
-              foregroundColor: Color(0xFF292929),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-
-          // Text button theme
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: Color(0xFFFFC815),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10.0),
+            borderSide: BorderSide(
+              color: Color(0xFF585858),
+              width: 1.0,
             ),
           ),
         ),
-      home: LoginScreen(),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Color(0xFFFFC815),
+            foregroundColor: Color(0xFF292929),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: Color(0xFFFFC815),
+          ),
+        ),
+      ),
+      home: SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -96,11 +96,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  var emailController = TextEditingController();
-  var passwordController = TextEditingController();
-  var nameController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final nameController = TextEditingController();
   bool isPasswordVisible = false;
   bool flag = false;
+  bool isLoading = false;
+
+  final supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -110,6 +113,65 @@ class _MyHomePageState extends State<MyHomePage> {
         flag = true;
       });
     });
+  }
+
+  Future<void> _signUp() async {
+    if (nameController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill all fields')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final AuthResponse response = await supabase.auth.signUp(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+        data: {
+          'name': nameController.text.trim(),
+          'username': nameController.text.trim().toLowerCase(),
+        },
+      );
+
+      if (response.user != null) {
+        // Update user profile with additional data
+        await supabase.from('profiles').upsert({
+          'id': response.user!.id,
+          'name': nameController.text.trim(),
+          'username': nameController.text.trim().toLowerCase(),
+          'email': emailController.text.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registration successful! Please check your email for verification.')),
+        );
+
+        // Navigate to login screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
+      }
+    } on AuthException catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred during registration')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override
@@ -136,7 +198,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               SizedBox(height: 20),
               Text(
-                "Sign Up!",
+                "Sign Up",
                 style: TextStyle(
                   fontSize: 40,
                   color: Color(0xFF292929),
@@ -158,6 +220,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   label: Text('Enter email'),
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
+                keyboardType: TextInputType.emailAddress,
               ),
               SizedBox(height: 25),
               TextField(
@@ -184,10 +247,17 @@ class _MyHomePageState extends State<MyHomePage> {
               SizedBox(
                 width: 160,
                 child: ElevatedButton(
-                  child: Text("Create Account"),
-                  onPressed: () {
-                    // ... existing sign up logic ...
-                  },
+                  onPressed: isLoading ? null : _signUp,
+                  child: isLoading
+                      ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF292929)),
+                    ),
+                  )
+                      : Text("Create Account"),
                 ),
               ),
               SizedBox(height: 10),
@@ -201,7 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SplashScreen(),
+                          builder: (context) => LoginScreen(),
                         ),
                       );
                     },
