@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'home_screen.dart';
+import 'home_enhanced.dart';
 import 'main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -60,10 +60,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.user != null) {
-        // Successfully logged in - navigate to home screen
+        // Successfully logged in - navigate to enhanced home screen
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
+          MaterialPageRoute(builder: (context) => LostKuetShell()),
               (route) => false,
         );
       }
