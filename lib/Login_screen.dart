@@ -15,20 +15,24 @@ class _LoginScreenState extends State<LoginScreen> {
   bool textAnimationFlag = false;
   bool isLoading = false;
 
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
   bool isPasswordVisible = false;
 
-  final supabase = Supabase.instance.client;
+  final SupabaseClient supabase = Supabase.instance.client;
 
   @override
   void initState() {
     super.initState();
-    Timer(Duration(milliseconds: 500), () {
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    Timer(const Duration(milliseconds: 500), () {
       setState(() {
         flag = true;
       });
-      Future.delayed(Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 500), () {
         setState(() {
           textAnimationFlag = true;
         });
@@ -37,10 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signIn() async {
-    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter both email and password')),
-      );
+    final String email = emailController.text.trim();
+    final String password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar('Please enter both email and password');
       return;
     }
 
@@ -50,8 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final AuthResponse response = await supabase.auth.signInWithPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        email: email,
+        password: password,
       );
 
       if (response.user != null) {
@@ -63,41 +68,45 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on AuthException catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      _showSnackBar(error.message);
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred during login')),
-      );
+      _showSnackBar('An error occurred during login');
     } finally {
       setState(() {
         isLoading = false;
       });
     }
   }
+
   Future<void> _resetPassword() async {
-    if (emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter your email address')),
-      );
+    final String email = emailController.text.trim();
+
+    if (email.isEmpty) {
+      _showSnackBar('Please enter your email address');
       return;
     }
 
     try {
-      await supabase.auth.resetPasswordForEmail(emailController.text.trim());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Password reset email sent!')),
-      );
+      await supabase.auth.resetPasswordForEmail(email);
+      _showSnackBar('Password reset email sent!');
     } on AuthException catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      _showSnackBar(error.message);
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send reset email')),
-      );
+      _showSnackBar('Failed to send reset email');
     }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _navigateToSignUp() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => MyHomePage()),
+    );
   }
 
   @override
@@ -106,14 +115,14 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SingleChildScrollView(
         child: Container(
           height: MediaQuery.of(context).size.height,
-          padding: EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Spacer(flex: 1),
+              const Spacer(flex: 1),
               AnimatedCrossFade(
-                firstChild: SizedBox.shrink(),
-                duration: Duration(milliseconds: 500),
+                firstChild: const SizedBox.shrink(),
+                duration: const Duration(milliseconds: 500),
                 secondChild: Image.asset(
                   "assets/images/lostatkuet_icon.png",
                   width: 100,
@@ -123,99 +132,110 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossFadeState:
                 flag ? CrossFadeState.showSecond : CrossFadeState.showFirst,
               ),
-              SizedBox(height: 15),
+              const SizedBox(height: 15),
               AnimatedOpacity(
                 opacity: textAnimationFlag ? 1.0 : 0.0,
-                duration: Duration(milliseconds: 500),
+                duration: const Duration(milliseconds: 500),
                 child: Text(
                   "Lost @ KUET",
                   style: TextStyle(
                     fontSize: 35,
-                    color: Color(0xFF292929),
+                    color: const Color(0xFF292929),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              Spacer(flex: 1),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  hintText: 'Email',
-                  hintStyle: TextStyle(color: Color(0xFF585858)),
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              SizedBox(height: 30),
-              TextField(
-                controller: passwordController,
-                obscureText: !isPasswordVisible,
-                decoration: InputDecoration(
-                  hintText: 'Password',
-                  hintStyle: TextStyle(color: Color(0xFF585858)),
-                  prefixIcon: Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      isPasswordVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        isPasswordVisible = !isPasswordVisible;
-                      });
-                    },
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _resetPassword,
-                  child: Text('Forgot Password?'),
-                ),
-              ),
-              SizedBox(height: 20),
-              SizedBox(
-                width: 100,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : _signIn,
-                  child: isLoading
-                      ? SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF292929)),
-                    ),
-                  )
-                      : Text("Login"),
-                ),
-              ),
-              SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("Don't have any account?"),
-                  TextButton(
-                    child: Text("Sign Up"),
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MyHomePage(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              Spacer(flex: 2),
+              const Spacer(flex: 1),
+              _buildEmailField(),
+              const SizedBox(height: 30),
+              _buildPasswordField(),
+              const SizedBox(height: 10),
+              _buildForgotPasswordButton(),
+              const SizedBox(height: 20),
+              _buildLoginButton(),
+              const SizedBox(height: 10),
+              _buildSignUpRedirect(),
+              const Spacer(flex: 2),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildEmailField() {
+    return TextField(
+      controller: emailController,
+      decoration: const InputDecoration(
+        hintText: 'Email',
+        hintStyle: TextStyle(color: Color(0xFF585858)),
+        prefixIcon: Icon(Icons.email_outlined),
+      ),
+      keyboardType: TextInputType.emailAddress,
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return TextField(
+      controller: passwordController,
+      obscureText: !isPasswordVisible,
+      decoration: InputDecoration(
+        hintText: 'Password',
+        hintStyle: const TextStyle(color: Color(0xFF585858)),
+        prefixIcon: const Icon(Icons.lock),
+        suffixIcon: IconButton(
+          icon: Icon(
+            isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+          ),
+          onPressed: () {
+            setState(() {
+              isPasswordVisible = !isPasswordVisible;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForgotPasswordButton() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: _resetPassword,
+        child: const Text('Forgot Password?'),
+      ),
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return SizedBox(
+      width: 100,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : _signIn,
+        child: isLoading
+            ? SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF292929)),
+          ),
+        )
+            : const Text("Login"),
+      ),
+    );
+  }
+
+  Widget _buildSignUpRedirect() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text("Don't have any account?"),
+        TextButton(
+          child: const Text("Sign Up"),
+          onPressed: _navigateToSignUp,
+        ),
+      ],
     );
   }
 }
