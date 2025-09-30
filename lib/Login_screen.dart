@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'home_enhanced.dart';
 
 import 'main.dart';
 
@@ -105,6 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: ElevatedButton(
                   child: Text("Login"),
                   onPressed: () async {
+                    
                     // ... existing login logic ...
                   },
                 ),
@@ -127,7 +129,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-              Spacer(flex: 2),
+              // Add the "Go to Home" button here
+SizedBox(height: 20),
+SizedBox(
+  width: 160,
+  child: ElevatedButton(
+    child: Text("Go to Home"),
+    onPressed: () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LostKuetShell()),
+      );
+    },
+  ),
+),
+SizedBox(height: 20),
+
+Spacer(flex: 2),
+
             ],
           ),
         ),
