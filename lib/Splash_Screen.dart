@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:lostatkuet/Login_screen.dart';
+import 'package:LostAtKuet/Login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'home_enhanced.dart';
