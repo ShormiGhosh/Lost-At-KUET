@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:LostAtKuet/Login_screen.dart';
+import 'package:lostatkuet/Login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'home_enhanced.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -48,8 +51,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _fadeInTagline();
 
     // Navigate after full duration (at 5s mark)
+
     await Future.delayed(const Duration(milliseconds: 1500));
-    if (mounted) {
+    _checkLoginState();
+  }
+  Future<void> _checkLoginState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    if (isLoggedIn) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => LostKuetShell()),
+      );
+    } else {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => LoginScreen()),
       );

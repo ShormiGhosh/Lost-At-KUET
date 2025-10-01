@@ -1,4 +1,4 @@
-name: LostAtKuet
+name: lostatkuet
 description: "A lost and found flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -30,11 +30,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  supabase_flutter: ^2.10.1 # Check pub.dev for the latest version
+
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.5.3 # Shared Preferences package for storing user preferences
+  shared_preferences: ^2.0.15
   sqflite: ^2.4.2
   path_provider: ^2.1.5
   path: ^1.9.1
@@ -42,6 +44,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+    
 
 
 flutter_icons:
