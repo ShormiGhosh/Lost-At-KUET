@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'profile_page.dart';
+import 'settings_page.dart';
+import 'chat_page.dart';
 
 /// ---------- THEME (pixie-like, yellow on dark header) ----------
 const _amber = Color(0xFFF4B400); // warm amber
@@ -24,7 +27,12 @@ class LostKuetShell extends StatefulWidget {
 
 class _LostKuetShellState extends State<LostKuetShell> with TickerProviderStateMixin {
   int _index = 0;
-  final _pages = const [HomeEnhancedPage(), _Stub('Profile'), _Stub('Settings'), _Stub('Chat')];
+  final _pages = const [
+    HomeEnhancedPage(),
+    ProfilePage(),
+    SettingsPage(),
+    ChatPage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -127,8 +135,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return CustomScrollView(
       controller: _scroll,
       slivers: [
@@ -482,11 +488,4 @@ class _DetailsPage extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Stub extends StatelessWidget {
-  final String name;
-  const _Stub(this.name);
-  @override
-  Widget build(BuildContext context) => Center(child: Text('$name page coming soon'));
 }
