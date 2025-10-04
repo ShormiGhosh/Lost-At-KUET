@@ -110,6 +110,6 @@ class _ChatPageState extends State<ChatPage> {
         date.year == now.year) {
       return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     }
-    return '${date.day}/${date.month}';
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

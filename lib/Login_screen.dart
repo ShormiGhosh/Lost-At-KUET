@@ -48,7 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _showSnackBar('Please enter both email and password');
       return;
     }
-
     setState(() {
       isLoading = true;
     });
