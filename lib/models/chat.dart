@@ -1,0 +1,43 @@
+import 'package:LostAtKuet/models/profile.dart';
+
+class Chat {
+  final String id;
+  final String user1Id;
+  final String user2Id;
+  final String? lastMessage;
+  final DateTime? lastMessageAt;
+  final Profile otherUser;
+  final String? otherUserAvatar; // Add this field
+  final DateTime createdAt;
+
+  Chat({
+    required this.id,
+    required this.user1Id,
+    required this.user2Id,
+    this.lastMessage,
+    this.lastMessageAt,
+    required this.otherUser,
+    this.otherUserAvatar, // Add this parameter
+    required this.createdAt,
+  });
+
+  factory Chat.fromJson(Map<String, dynamic> json, String currentUserId) {
+    final isUser1 = json['user1_id'] == currentUserId;
+    final otherUserData = isUser1
+        ? json['profiles!chats_user2_id_fkey']
+        : json['profiles!chats_user1_id_fkey'];
+
+    return Chat(
+      id: json['id'],
+      user1Id: json['user1_id'],
+      user2Id: json['user2_id'],
+      lastMessage: json['last_message'],
+      lastMessageAt: json['last_message_at'] != null
+          ? DateTime.parse(json['last_message_at'])
+          : null,
+      otherUser: Profile.fromJson(otherUserData),
+      otherUserAvatar: otherUserData['avatar_url'],
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
+}

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
-import 'chat_page.dart';
+import 'chat_screen.dart';
 
 /// ---------- THEME (pixie-like, yellow on dark header) ----------
 const _amber = Color(0xFFF4B400); // warm amber
