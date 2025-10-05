@@ -24,8 +24,8 @@ class Chat {
   factory Chat.fromJson(Map<String, dynamic> json, String currentUserId) {
     final isUser1 = json['user1_id'] == currentUserId;
     final otherUserData = isUser1
-        ? json['profiles!chats_user2_id_fkey']
-        : json['profiles!chats_user1_id_fkey'];
+        ? json['user2']
+        : json['user1'];
 
     return Chat(
       id: json['id'],

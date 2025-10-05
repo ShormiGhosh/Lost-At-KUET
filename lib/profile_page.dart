@@ -83,7 +83,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               IconButton(icon: Icon(Icons.share_outlined, color: cs.onSurface), onPressed: () {}),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: Container(
+              background: SingleChildScrollView(
+                child:Container(
                 // ensure the flexible space content sits below the toolbar/title
                 padding: EdgeInsets.fromLTRB(16, kToolbarHeight + 12, 16, 12),
                 decoration: BoxDecoration(
@@ -163,6 +164,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     ),
                   ],
                 ),
+              ),
               ),
             ),
             bottom: PreferredSize(
