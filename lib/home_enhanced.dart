@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'create_post_screen.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
@@ -59,7 +60,7 @@ class _LostKuetShellState extends State<LostKuetShell> with TickerProviderStateM
               scale: 1,
               duration: const Duration(milliseconds: 250),
               child: FloatingActionButton.extended(
-                onPressed: () => _showPostSheet(context),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_)=> const CreatePostScreen())),
                 icon: const Icon(Icons.add),
                 label: const Text('Post'),
               ),
