@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permissions required for image picking -->
+    <!-- For Android 13+ use READ_MEDIA_IMAGES; for older versions use READ_EXTERNAL_STORAGE -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Optional: CAMERA permission if you want to allow taking photos -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:label="Lost@KUET"
         android:name="${applicationName}"

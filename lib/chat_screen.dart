@@ -30,20 +30,15 @@ class _ChatPageState extends State<ChatPage> {
       final response = await _supabase
           .from('chats')
           .select('''
-          id,
-          user1_id,
-          user2_id,
-          last_message,
-          last_message_at,
-          created_at,
-          profiles!chats_user1_id_fkey (
+          *,
+          user1:profiles!chats_user1_id_fkey (
             id,
             username,
             avatar_url,
             name,
             email
           ),
-          profiles!chats_user2_id_fkey (
+          user2:profiles!chats_user2_id_fkey (
             id,
             username,
             avatar_url,

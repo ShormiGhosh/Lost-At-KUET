@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'package:LostAtKuet/chat_detail_screen.dart';
-import 'package:LostAtKuet/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'Login_screen.dart';
