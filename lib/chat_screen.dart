@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/chat.dart';
+import 'models/profile.dart';
 import 'chat_detail_screen.dart';
 
 class ChatPage extends StatefulWidget {
@@ -13,49 +14,76 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final _chats = <Chat>[];
   bool _loading = false;
-  // final _supabase = Supabase.instance.client;
+  final _supabase = Supabase.instance.client;
+  late final String _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _loadMockChats();
+    _currentUserId = _supabase.auth.currentUser!.id;
+    _loadChats();
   }
 
-  void _loadMockChats() {
-    // Mock chat data
-    final mockChats = [
-      Chat(
-        id: '1',
-        user1Id: 'currentUser',
-        user2Id: 'user2',
-        lastMessage: 'Hello , I love you!',
-        lastMessageAt: DateTime.now(),
-        otherUserName: 'Shormi Ghosh',
-        otherUserAvatar: null,
-      ),
-      Chat(
-        id: '2',
-        user1Id: 'currentUser',
-        user2Id: 'user3',
-        lastMessage: 'Valo acho?',
-        lastMessageAt: DateTime.now().subtract(const Duration(hours: 1)),
-        otherUserName: 'ke be?',
-        otherUserAvatar: null,
-      ),
-    ];
+  Future<void> _loadChats() async {
+    setState(() => _loading = true);
+    try {
+      final response = await _supabase
+          .from('chats')
+          .select('''
+          id,
+          user1_id,
+          user2_id,
+          last_message,
+          last_message_at,
+          created_at,
+          profiles!chats_user1_id_fkey (
+            id,
+            username,
+            avatar_url,
+            name,
+            email
+          ),
+          profiles!chats_user2_id_fkey (
+            id,
+            username,
+            avatar_url,
+            name,
+            email
+          )
+        ''')
+          .or('user1_id.eq.$_currentUserId,user2_id.eq.$_currentUserId')
+          .order('last_message_at', ascending: false);
 
-    setState(() {
-      _chats.clear();
-      _chats.addAll(mockChats);
-      _loading = false;
-    });
+      final chats = response
+          .map<Chat>((chat) => Chat.fromJson(chat, _currentUserId))
+          .toList();
+
+      setState(() {
+        _chats.clear();
+        _chats.addAll(chats);
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading chats: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages', style: TextStyle(color: Color(0xFFFFFFFF), fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Messages',
+          style: TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: const Color(0xFF292929),
       ),
       body: _loading
@@ -72,10 +100,10 @@ class _ChatPageState extends State<ChatPage> {
                   ? NetworkImage(chat.otherUserAvatar!)
                   : null,
               child: chat.otherUserAvatar == null
-                  ? Text(chat.otherUserName?[0] ?? '?')
+                  ? Text(chat.otherUser.username[0])
                   : null,
             ),
-            title: Text(chat.otherUserName ?? 'Unknown'),
+            title: Text(chat.otherUser.username),
             subtitle: chat.lastMessage != null
                 ? Text(
               chat.lastMessage!,

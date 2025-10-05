@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/chat.dart';
 import 'models/message.dart';
 
@@ -15,62 +15,110 @@ class ChatDetailPage extends StatefulWidget {
 class _ChatDetailPageState extends State<ChatDetailPage> {
   final _messages = <Message>[];
   final _messageController = TextEditingController();
-  // final _supabase = Supabase.instance.client;
-  // late final Stream<List<Message>> _messageStream;
+  final _supabase = Supabase.instance.client;
+  late final String currentUserId;
+  late final RealtimeChannel _subscription;
 
   @override
   void initState() {
     super.initState();
-    // _loadMessages();
-    // _setupMessageStream();
+    currentUserId = _supabase.auth.currentUser!.id;
+    _loadMessages();
+    _setupMessageSubscription();
   }
 
-  // Commented out Supabase functionality
-  /*
   Future<void> _loadMessages() async {
-    // Supabase message loading logic
-  }
+    try {
+      final response = await _supabase
+          .from('messages')
+          .select('''
+            *,
+            profiles!messages_sender_id_fkey (id, username)
+          ''')
+          .eq('chat_id', widget.chat.id)
+          .order('created_at');
 
-  void _setupMessageStream() {
-    // Supabase stream setup logic
+      final messages = response.map<Message>((msg) => Message.fromJson(msg)).toList();
+
+      setState(() {
+        _messages.clear();
+        _messages.addAll(messages);
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading messages: $e')),
+        );
+      }
+    }
+  }
+  void _setupMessageSubscription() {
+    _subscription = _supabase
+        .channel('messages')
+        .onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) async {
+        if (payload.newRecord['chat_id'] == widget.chat.id) {
+          await _loadMessages();
+        }
+      },
+    )
+        .onPostgresChanges(
+      event: PostgresChangeEvent.delete,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) async {
+        if (payload.oldRecord['chat_id'] == widget.chat.id) {
+          await _loadMessages();
+        }
+      },
+    )
+        .onPostgresChanges(
+      event: PostgresChangeEvent.update,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) async {
+        if (payload.newRecord['chat_id'] == widget.chat.id) {
+          await _loadMessages();
+        }
+      },
+    )
+        .subscribe();
   }
 
   Future<void> _sendMessage() async {
-    // Supabase message sending logic
-  }
-  */
-
-  void _sendMessage() {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
-    // Mock message sending
-    setState(() {
-      _messages.add(
-        Message(
-          id: DateTime.now().toString(),
-          chatId: widget.chat.id,
-          senderId: 'currentUser', // Mock user ID
-          content: content,
-          createdAt: DateTime.now(),
-          read: false,
-        ),
-      );
-    });
+    try {
+      await _supabase.from('messages').insert({
+        'chat_id': widget.chat.id,
+        'sender_id': currentUserId,
+        'content': content,
+      });
 
-    _messageController.clear();
-  }
+      await _supabase
+          .from('chats')
+          .update({
+        'last_message': content,
+        'last_message_at': DateTime.now().toIso8601String(),
+      })
+          .eq('id', widget.chat.id);
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
+      _messageController.clear();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending message: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    const currentUserId = 'currentUser'; // Mock user ID
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -86,11 +134,17 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   ? NetworkImage(widget.chat.otherUserAvatar!)
                   : null,
               child: widget.chat.otherUserAvatar == null
-                  ? Text(widget.chat.otherUserName?[0] ?? '?')
+                  ? Text(widget.chat.otherUser.username[0])
                   : null,
             ),
             const SizedBox(width: 8),
-            Text(widget.chat.otherUserName ?? 'Chat', style: const TextStyle(color: Color(0xFFFFFFFF), fontWeight: FontWeight.bold)),
+            Text(
+              widget.chat.otherUser.username,
+              style: const TextStyle(
+                color: Color(0xFFFFFFFF),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
         backgroundColor: const Color(0xFF292929),
@@ -106,8 +160,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 final isMe = message.senderId == currentUserId;
 
                 return Align(
-                  alignment:
-                  isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.symmetric(
                       vertical: 4,
@@ -120,9 +173,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     ),
                     child: Text(
                       message.content,
-                      style: TextStyle(
-                        color: isMe ? Colors.white : Colors.white,
-                      ),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 );
@@ -152,5 +203,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _subscription.unsubscribe();
+    super.dispose();
   }
 }

@@ -1,3 +1,5 @@
+import 'profile.dart';
+
 class Message {
   final String id;
   final String chatId;
@@ -5,6 +7,7 @@ class Message {
   final String content;
   final DateTime createdAt;
   final bool read;
+  final Profile sender;
 
   Message({
     required this.id,
@@ -13,6 +16,7 @@ class Message {
     required this.content,
     required this.createdAt,
     required this.read,
+    required this.sender,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,7 @@ class Message {
       content: json['content'],
       createdAt: DateTime.parse(json['created_at']),
       read: json['read'] ?? false,
+      sender: Profile.fromJson(json['profiles']),
     );
   }
 }
