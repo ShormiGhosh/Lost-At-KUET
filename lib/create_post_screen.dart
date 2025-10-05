@@ -20,14 +20,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _isLoading = false;
   final List<String> _categories = [
     'Wallet',
-    'Mobile',
     'Charger',
     'Keys',
+    'Electronics',
+    'Clothing',
     'Book',
-    'Notebook',
     'Stationary item',
-    'Pendrive',
-    'Earphone',
     'Others'
   ];
 
@@ -73,8 +71,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Status Dropdown
               DropdownButtonFormField<String>(
                 value: _status,
                 decoration: const InputDecoration(
@@ -125,8 +121,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
-              // Category Dropdown
               DropdownButtonFormField<String>(
                 value: _category,
                 decoration: const InputDecoration(
@@ -144,8 +138,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
-              // Location
               TextFormField(
                 controller: _locationController,
                 decoration: const InputDecoration(
@@ -154,20 +146,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a location';
+                    return 'Where did you lose/find it?';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 24),
-
-              // Upload Button
               ElevatedButton(
                 onPressed: _isLoading
                     ? null
                     : () {
                   if (_formKey.currentState!.validate()) {
-                    // TODO: Implement upload logic
+                    Navigator.pop(context);
                   }
                 },
                 style: ElevatedButton.styleFrom(

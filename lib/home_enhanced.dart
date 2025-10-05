@@ -1,12 +1,15 @@
+import 'package:LostAtKuet/chat_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'create_post_screen.dart';
+import 'models/chat.dart';
+import 'models/profile.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
 
 /// ---------- THEME (pixie-like, yellow on dark header) ----------
-const _amber = Color(0xFFF4B400); // warm amber
-const _charcoal = Color(0xFF2E2F34); // dark header bg
+const _amber = Color(0xFFFFC815); // warm amber
+const _charcoal = Color(0xFF292929); // dark header bg
 
 ThemeData lostKuetTheme() => ThemeData(
   useMaterial3: true,
@@ -329,8 +332,8 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
               child: _PostCard(
                 index: i,
                 isLost: _isLost ? i.isEven : !i.isEven,
-                title: _isLost ? 'Lost: Black Wallet #$i' : 'Found: Phone #$i',
-                subtitle: 'Near Cafeteria • ${i + 1}h ago • Electronics',
+                title: _isLost ? 'Black Wallet' : 'Phone',
+                description: 'This is a detailed description of the lost/found item. It can span multiple lines and will be truncated after 2 lines.',
                 chipColor: _isLost ? Colors.red[400]! : Colors.green[400]!,
                 onTap: () => Navigator.of(context).push(
                   PageRouteBuilder(
@@ -340,7 +343,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
                       child: _DetailsPage(
                         heroTag: 'post-$i',
                         imageUrl: 'https://picsum.photos/seed/$i/1000/600',
-                        title: _isLost ? 'Lost: Black Wallet #$i' : 'Found: Phone #$i',
+                        title: _isLost ? 'Lost: Black Wallet' : 'Found: Phone',
                       ),
                     ),
                   ),
@@ -424,15 +427,24 @@ class _MiniCard extends StatelessWidget {
 
 class _PostCard extends StatelessWidget {
   final int index;
-  final String title, subtitle;
+  final String title, description;
   final bool isLost;
   final Color chipColor;
   final VoidCallback onTap;
-  const _PostCard({required this.index, required this.title, required this.subtitle, required this.isLost, required this.chipColor, required this.onTap});
+
+  const _PostCard({
+    required this.index,
+    required this.title,
+    required this.description,
+    required this.isLost,
+    required this.chipColor,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final img = 'https://picsum.photos/seed/$index/1000/600';
+
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -440,27 +452,104 @@ class _PostCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
               children: [
                 Hero(
                   tag: 'post-$index',
-                  child: AspectRatio(aspectRatio: 16 / 9, child: Image.network(img, fit: BoxFit.cover)),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.network(img, fit: BoxFit.cover),
+                  ),
                 ),
                 Positioned(
-                  left: 12, top: 12,
-                  child: Chip(label: Text(isLost ? 'LOST' : 'FOUND', style: const TextStyle(color: Colors.white)), backgroundColor: chipColor),
-                ),
-                Positioned(
-                  right: 6, top: 6,
-                  child: IconButton(icon: const Icon(Icons.share_outlined, color: Colors.white), onPressed: () {}),
+                  right: 12,
+                  top: 12,
+                  child: Chip(
+                    label: Text(
+                      isLost ? 'LOST' : 'FOUND',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    backgroundColor: chipColor,
+                  ),
                 ),
               ],
             ),
-            ListTile(
-              title: Text(title),
-              subtitle: Text(subtitle),
-              trailing: FilledButton.tonal(onPressed: () {}, child: const Text('Contact')),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        'KUET, Khulna',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const Spacer(),
+                      Text(
+                        '2 hours ago',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // Create a Chat object with required parameters
+                        final chat = Chat(
+                          id: 'chat_$index',
+                          user1Id: 'current_user_id', // Replace with actual current user ID
+                          user2Id: 'user_$index', // Replace with actual poster's ID
+                          otherUser: Profile(
+                            id: 'user_$index',
+                            username: 'Poster Name',
+                          ),
+                          createdAt: DateTime.now(),
+                        );
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatDetailPage(chat: chat),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Contact Poster'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF292929),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -468,7 +557,6 @@ class _PostCard extends StatelessWidget {
     );
   }
 }
-
 class _DetailsPage extends StatelessWidget {
   final String heroTag, imageUrl, title;
   const _DetailsPage({required this.heroTag, required this.imageUrl, required this.title});
