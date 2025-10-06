@@ -39,25 +39,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   setState(() { _profile = res; _loading = false; });
   }
 
-  Future<String?> _uploadAvatar(XFile file) async {
-    try {
-      final user = supabase.auth.currentUser;
-      if (user == null) return null;
-      final bytes = await file.readAsBytes();
-      final path = 'avatars/${user.id}.jpg';
-      // uploadBinary will overwrite when upsert true
-      await supabase.storage.from('avatars').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
-      // get public url (requires bucket to be public or use signed URL)
-  final publicUrl = supabase.storage.from('avatars').getPublicUrl(path);
-  // getPublicUrl returns a String URL
-  return publicUrl;
-    } catch (e) {
-      debugPrint('avatar upload error: $e');
-      return null;
-    }
-  }
-
-  // Replaced by a full-screen editor route. See EditProfilePage below.
+  // The upload helper was intentionally removed; full-screen editor uses
+  // `_uploadAvatarLocal` inside `EditProfilePage` instead.
 
   @override
   Widget build(BuildContext context) {
