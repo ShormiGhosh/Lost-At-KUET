@@ -6,6 +6,7 @@ import 'models/profile.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
+import 'notifications_page.dart';
 
 /// ---------- THEME (pixie-like, yellow on dark header) ----------
 const _amber = Color(0xFFFFC815); // warm amber
@@ -84,20 +85,7 @@ class _AnimIcon extends StatelessWidget {
       );
 }
 
-void _showPostSheet(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (_) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 16, right: 16, top: 8,
-      ),
-      child: const Text('Post Lost / Found form…'),
-    ),
-  );
-}
+// _showPostSheet removed (unused). Keep implementation in CreatePostScreen.
 
 /// ---------- HOME PAGE ----------
 class HomeEnhancedPage extends StatefulWidget {
@@ -181,7 +169,9 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
                     position: Tween<Offset>(begin: const Offset(.15, 0), end: Offset.zero)
                         .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut)),
                     child: IconButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
+                      },
                       icon: const Icon(Icons.notifications_none, color: Colors.white),
                     ),
                   ),
@@ -557,6 +547,8 @@ class _PostCard extends StatelessWidget {
     );
   }
 }
+
+// Notifications are implemented in a separate UI-only page: notifications_page.dart
 class _DetailsPage extends StatelessWidget {
   final String heroTag, imageUrl, title;
   const _DetailsPage({required this.heroTag, required this.imageUrl, required this.title});
