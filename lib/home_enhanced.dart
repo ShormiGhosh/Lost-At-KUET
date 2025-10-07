@@ -11,6 +11,7 @@ import 'models/profile.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
+import 'notifications_page.dart';
 
 const _amber = Color(0xFFFFC815); // warm amber
 const _charcoal = Color(0xFF292929); // dark header bg
@@ -143,9 +144,11 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
     with TickerProviderStateMixin {
   final _scroll = ScrollController();
   final _searchFocus = FocusNode();
-  List<Post> get _filteredPosts => _posts.where((post) =>
-  post.status.toLowerCase() == _status.toLowerCase()
-  ).toList();
+  final supabase = Supabase.instance.client;
+  List<Post> get _filteredPosts =>
+      _posts.where((post) =>
+      post.status.toLowerCase() == _status.toLowerCase()
+      ).toList();
 
   bool _filtersExpanded = true;
   String _status = 'Lost';
@@ -153,12 +156,14 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
   late final AnimationController _headerCtrl = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 450),
-  )..forward();
+  )
+    ..forward();
 
   late final AnimationController _staggerCtrl = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 700),
-  )..forward();
+  )
+    ..forward();
 
   final _postService = PostService(Supabase.instance.client);
   List<Post> _posts = [];
@@ -290,15 +295,15 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow:
-                      _searchFocus.hasFocus
-                          ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(.25),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
-                            ),
-                          ]
-                          : const [],
+                  _searchFocus.hasFocus
+                      ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(.25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                      : const [],
                 ),
                 child: Focus(
                   onFocusChange: (_) => setState(() {}),
@@ -338,10 +343,10 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                         ],
                         style: ButtonStyle(
                           backgroundColor: WidgetStateProperty.resolveWith(
-                            (s) =>
-                                s.contains(WidgetState.selected)
-                                    ? _amber.withOpacity(.25)
-                                    : Colors.white,
+                                (s) =>
+                            s.contains(WidgetState.selected)
+                                ? _amber.withOpacity(.25)
+                                : Colors.white,
                           ),
                           foregroundColor: WidgetStateProperty.all(
                             Colors.black87,
@@ -353,14 +358,34 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                       ),
                     ),
                   ),
+
                   const SizedBox(width: 8),
                   IconButton(
                     onPressed:
-                        () => setState(
-                          () => _filtersExpanded = !_filtersExpanded,
+                        () =>
+                        setState(
+                              () => _filtersExpanded = !_filtersExpanded,
                         ),
                     icon: const Icon(Icons.tune, color: Colors.white),
                     tooltip: 'Filters',
+                  ),
+                  // notifications (fade-in from right)
+                  FadeTransition(
+                      opacity: CurvedAnimation(parent: _headerCtrl,
+                          curve: const Interval(.3, 1, curve: Curves.easeOut))),
+                  SlideTransition(
+                    position: Tween<Offset>(
+                        begin: const Offset(.15, 0), end: Offset.zero)
+                        .animate(CurvedAnimation(
+                        parent: _headerCtrl, curve: Curves.easeOut)),
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (
+                            _) => const NotificationsPage()));
+                      },
+                      icon: const Icon(
+                          Icons.notifications_none, color: Colors.white),
+                    ),
                   ),
                 ],
               ),
@@ -381,8 +406,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                     children: const [
                       _Chip('Category'),
                       _Chip('Distance'),
-                      _Chip('Time'),
-                      _Chip('Reward'),
                     ],
                   ),
                 ),
@@ -398,7 +421,10 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                 children: [
                   Text(
                     'Near you',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme
+                        .of(context)
+                        .textTheme
+                        .titleMedium,
                   ),
                   const Spacer(),
                   TextButton(onPressed: () {}, child: const Text('See all')),
@@ -415,13 +441,14 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                 itemCount: 6,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder:
-                    (_, i) => TweenAnimationBuilder<double>(
+                    (_, i) =>
+                    TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0.92, end: 1),
                       duration: const Duration(milliseconds: 320),
                       curve: Curves.easeOutBack,
                       builder:
                           (_, s, child) =>
-                              Transform.scale(scale: s, child: child),
+                          Transform.scale(scale: s, child: child),
                       child: _MiniCard(i: i),
                     ),
               ),
@@ -434,7 +461,10 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Text(
                 'Latest posts',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme
+                    .of(context)
+                    .textTheme
+                    .titleMedium,
               ),
             ),
           ),
@@ -472,7 +502,8 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
               return AnimatedBuilder(
                 animation: anim,
                 builder:
-                    (context, child) => Opacity(
+                    (context, child) =>
+                    Opacity(
                       opacity: anim.value,
                       child: Transform.translate(
                         offset: Offset(0, (1 - anim.value) * 18),
@@ -483,31 +514,40 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   index: i,
                   title: post.title,
                   description: post.description,
-                  status: post.status, // Changed from isLost
+                  status: post.status,
+                  // Changed from isLost
                   chipColor:
-                      post.status.toLowerCase() == 'lost'
-                          ? Colors.red[400]!
-                          : Colors.green[400]!,
+                  post.status.toLowerCase() == 'lost'
+                      ? Colors.red[400]!
+                      : Colors.green[400]!,
                   imageUrl: post.imageUrl,
                   location: post.location,
                   createdAt: post.createdAt,
                   onTap:
-                      () => Navigator.of(context).push(
+                      () =>
+                      Navigator.of(context).push(
                         PageRouteBuilder(
                           transitionDuration: const Duration(milliseconds: 350),
                           pageBuilder:
-                              (_, a, __) => FadeTransition(
+                              (_, a, __) =>
+                              FadeTransition(
                                 opacity: a,
                                 child: _DetailsPage(
                                   heroTag: 'post-$i',
                                   imageUrl:
-                                      post.imageUrl ??
+                                  post.imageUrl ??
                                       'https://picsum.photos/seed/$i/1000/600',
-                                  title: post.title, description: '${post.description}', status: post.status, location: post.location, category: post.category, createdAt: post.createdAt,
+                                  title: post.title,
+                                  description: '${post.description}',
+                                  status: post.status,
+                                  location: post.location,
+                                  category: post.category,
+                                  createdAt: post.createdAt,
                                 ),
                               ),
                         ),
-                      ), category: '${post.category}',
+                      ),
+                  category: '${post.category}',
                 ),
               );
             },
@@ -521,19 +561,30 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
   Future<void> _loadPosts() async {
     try {
       setState(() => _isLoading = true);
-      final posts = await _postService.getPosts();
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Modify getPosts to exclude current user's posts
+      final posts = await supabase
+          .from('posts')
+          .select()
+          .neq('user_id', currentUser.id)
+          .order('created_at', ascending: false);
+
       if (mounted) {
         setState(() {
-          _posts = posts;
+          _posts = posts.map((post) => Post.fromJson(post)).toList();
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading posts: $e'); // Add debug print
+      debugPrint('Error loading posts: $e'); // Use debugPrint instead of print
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading posts: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading posts: $e')),
+        );
       }
       setState(() => _isLoading = false);
     }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/chat.dart';
-import 'models/profile.dart';
 import 'chat_detail_screen.dart';
 
 class ChatPage extends StatefulWidget {
