@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'forgot_password_screen.dart';
+import 'forgot_password.dart';
 import 'home_enhanced.dart';
 import 'main.dart';
 String _generateUniqueUsername(String name) {
