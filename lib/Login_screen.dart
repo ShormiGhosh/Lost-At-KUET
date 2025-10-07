@@ -1,10 +1,18 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'forgot_password_screen.dart';
 import 'home_enhanced.dart';
 import 'main.dart';
-
+String _generateUniqueUsername(String name) {
+  // Clean the name and make it URL-safe
+  final cleanName = name.toLowerCase().replaceAll(' ', '_').replaceAll(RegExp(r'[^a-z0-9_]'), '');
+  // Add timestamp to ensure uniqueness
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  return '${cleanName}_$timestamp';
+}
 class LoginScreen extends StatefulWidget {
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -20,6 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isPasswordVisible = false;
 
   final SupabaseClient supabase = Supabase.instance.client;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   @override
   void initState() {
@@ -48,6 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _showSnackBar('Please enter both email and password');
       return;
     }
+
     setState(() {
       isLoading = true;
     });
@@ -59,17 +71,44 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.user != null) {
-        // Save login state in SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isLoggedIn', true);
-        await prefs.setString('email', email);
+        // Verify profile exists
+        try {
+          await supabase
+              .from('profiles')
+              .select()
+              .eq('id', response.user!.id)
+              .single();
 
-        // Successfully logged in - navigate to enhanced home screen
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => LostKuetShell()),
-              (route) => false,
-        );
+          // Save login state
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', true);
+          await prefs.setString('email', email);
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => LostKuetShell()),
+                (route) => false,
+          );
+        } on PostgrestException catch (e) {
+          // Profile doesn't exist, create one
+          await _createOrUpdateUserProfile(
+            response.user!.id,
+            response.user!.email?.split('@').first ?? 'User',
+            response.user!.email ?? '',
+            null,
+          );
+
+          // Then navigate
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', true);
+          await prefs.setString('email', email);
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => LostKuetShell()),
+                (route) => false,
+          );
+        }
       }
     } on AuthException catch (error) {
       _showSnackBar(error.message);
@@ -104,6 +143,94 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+  // Add Google Sign-In method
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      final AuthResponse response = await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
+        accessToken: googleAuth.accessToken,
+      );
+
+      if (response.user != null) {
+        // Check if user profile exists, if not create one
+        await _createOrUpdateUserProfile(
+            response.user!.id,
+            googleUser.displayName ?? 'User',
+            googleUser.email,
+            googleUser.photoUrl
+
+        );
+
+        // Save login state in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true);
+        await prefs.setString('email', googleUser.email);
+
+        // Successfully logged in - navigate to enhanced home screen
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => LostKuetShell()),
+              (route) => false,
+        );
+      }
+    } on AuthException catch (error) {
+      _showSnackBar('Google Sign-In failed: ${error.message}');
+    } catch (error) {
+      _showSnackBar('An error occurred during Google Sign-In');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+  Future<void> _createOrUpdateUserProfile(
+      String userId,
+      String name,
+      String email,
+      String? avatarUrl
+      ) async {
+    try {
+      await supabase.from('profiles').upsert({
+        'id': userId,
+        'name': name,
+        'username': _generateUniqueUsername(name), // USE THE FUNCTION HERE
+        'email': email,
+        'avatar_url': avatarUrl,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') { // Unique violation
+        // Retry with different username
+        await supabase.from('profiles').upsert({
+          'id': userId,
+          'name': name,
+          'username': _generateUniqueUsername(name), // USE THE FUNCTION HERE
+          'email': email,
+          'avatar_url': avatarUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      } else {
+        rethrow;
+      }
+    }
   }
 
   void _navigateToSignUp() {
@@ -157,6 +284,10 @@ class _LoginScreenState extends State<LoginScreen> {
               _buildForgotPasswordButton(),
               const SizedBox(height: 20),
               _buildLoginButton(),
+              const SizedBox(height: 20),
+              _buildDivider(), // Add divider
+              const SizedBox(height: 20),
+              _buildGoogleSignInButton(), // Add Google Sign-In button
               const SizedBox(height: 10),
               _buildSignUpRedirect(),
               const Spacer(flex: 2),
@@ -205,7 +336,13 @@ class _LoginScreenState extends State<LoginScreen> {
     return Align(
       alignment: Alignment.centerRight,
       child: TextButton(
-        onPressed: _resetPassword,
+        onPressed: () {
+          // Navigate to ForgotPasswordScreen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => ForgotPasswordScreen()),
+          );
+        },
         child: const Text('Forgot Password?'),
       ),
     );
@@ -242,4 +379,62 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
+  // Add divider widget
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        Expanded(
+          child: Divider(color: Colors.grey[400]),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'OR',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Divider(color: Colors.grey[400]),
+        ),
+      ],
+    );
+  }
+  Widget _buildGoogleSignInButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton(
+        onPressed: isLoading ? null : _signInWithGoogle,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF292929),
+          side: const BorderSide(color: Color(0xFF585858)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/google_icon.png',
+              width: 20,
+              height: 20,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.account_circle,
+                  color: Color(0xFF292929),
+                );
+              },
+            ),
+            const SizedBox(width: 10),
+            const Text('Sign in with Google'),
+          ],
+        ),
+      ),
+    );
+  }
+
 }
