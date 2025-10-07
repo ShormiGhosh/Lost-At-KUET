@@ -1,22 +1,59 @@
 import 'dart:async';
-import 'package:LostAtKuet/chat_detail_screen.dart';
-import 'package:LostAtKuet/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'Login_screen.dart';
 import 'Splash_Screen.dart';
+import 'home_enhanced.dart';
 import 'supabase_config.dart';
-
+import 'package:google_sign_in/google_sign_in.dart';
+String _generateUniqueUsername(String name) {
+  // Clean the name and make it URL-safe
+  final cleanName = name.toLowerCase().replaceAll(' ', '_').replaceAll(RegExp(r'[^a-z0-9_]'), '');
+  // Add timestamp to ensure uniqueness
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  return '${cleanName}_$timestamp';
+}
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
 
+  // Handle auth state changes and profile creation
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+    final event = data.event;
+    final user = data.session?.user; // FIX: Use session.user instead of data.user
+
+    if (event == AuthChangeEvent.signedIn && user != null) {
+      // Check if profile exists, if not create one
+      try {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .maybeSingle() // FIX: Use maybeSingle instead of single with onError
+            .catchError((error) => null); // FIX: Use catchError instead of onError
+
+        if (profile == null) {
+          // Create profile for new user
+          await Supabase.instance.client.from('profiles').upsert({
+            'id': user.id,
+            'name': user.userMetadata?['name'] ?? 'User',
+            'username': _generateUniqueUsername(user.userMetadata?['name'] ?? 'User'),
+            'email': user.email ?? '',
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+        }
+      } catch (error) {
+        print('Error handling profile creation: $error');
+      }
+    }
+  });
+
   runApp(const MyApp());
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -101,6 +138,9 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isLoading = false;
 
   final SupabaseClient supabase = Supabase.instance.client;
+  final GoogleSignIn _googleSignIn = GoogleSignIn( // Fixed: Added missing semicolon and closing parenthesis
+    scopes: ['email', 'profile'],
+  );
 
   @override
   void initState() {
@@ -156,12 +196,12 @@ class _MyHomePageState extends State<MyHomePage> {
         password: password,
         data: {
           'name': name,
-          'username': name.toLowerCase().replaceAll(' ', '_'),
+          'username': _generateUniqueUsername(name),
         },
       );
 
       if (response.user != null) {
-        await _createUserProfile(response.user!.id, name, email);
+        // Don't create profile here - wait for email verification
         if (mounted) {
           _showSnackBar('Registration successful! Please check your email for verification.');
           _navigateToLogin();
@@ -184,18 +224,107 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  String _generateUniqueUsername(String name) {
+    final baseUsername = name.toLowerCase().replaceAll(' ', '_');
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${baseUsername}_$timestamp';
+  }
+
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
-
-  Future<void> _createUserProfile(String userId, String name, String email) async {
-    await supabase.from('profiles').upsert({
-      'id': userId,
-      'name': name,
-      'username': name.toLowerCase().replaceAll(' ', '_'),
-      'email': email,
-      'updated_at': DateTime.now().toIso8601String(),
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      isLoading = true;
     });
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      final AuthResponse response = await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
+        accessToken: googleAuth.accessToken,
+      );
+
+      if (response.user != null) {
+        // Check if user profile exists, if not create one
+        await _createOrUpdateUserProfile(
+            response.user!.id,
+            googleUser.displayName ?? 'User',
+            googleUser.email,
+            googleUser.photoUrl
+        );
+
+        if (mounted) {
+          _showSnackBar('Google Sign-In successful!');
+          _navigateToHome();
+        }
+      }
+    } on AuthException catch (error) {
+      if (mounted) {
+        _showSnackBar('Google Sign-In failed: ${error.message}');
+      }
+    } catch (error) {
+      if (mounted) {
+        _showSnackBar('An error occurred during Google Sign-In');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+  Future<void> _createOrUpdateUserProfile(
+      String userId,
+      String name,
+      String email, [
+        String? avatarUrl,
+      ]) async {
+    try {
+      await supabase.from('profiles').upsert({
+        'id': userId,
+        'name': name,
+        'username': _generateUniqueUsername(name),
+        'email': email,
+        'avatar_url': avatarUrl, // This will be null for email signups
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') { // Unique violation
+        // Retry with different username
+        await supabase.from('profiles').upsert({
+          'id': userId,
+          'name': name,
+          'username': _generateUniqueUsername(name),
+          'email': email,
+          'avatar_url': avatarUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  void _navigateToHome() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const SplashScreen()), // <-- CORRECTED DESTINATION
+          (route) => false,
+    );
   }
 
   void _showSnackBar(String message) {
@@ -223,6 +352,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
@@ -249,6 +379,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   _buildPasswordField(),
                   const SizedBox(height: 30),
                   _buildSignUpButton(),
+                  const SizedBox(height: 20),
+                  _buildDivider(),
+                  const SizedBox(height: 20),
+                  _buildGoogleSignInButton(), // Add Google Sign-In button
                   const SizedBox(height: 10),
                   _buildLoginRedirect(),
                   const SizedBox(height: 40),
@@ -256,6 +390,62 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        Expanded(
+          child: Divider(color: Colors.grey[400]),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'OR',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Divider(color: Colors.grey[400]),
+        ),
+      ],
+    );
+  }
+  Widget _buildGoogleSignInButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton(
+        onPressed: isLoading ? null : _signInWithGoogle,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF292929),
+          side: const BorderSide(color: Color(0xFF585858)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/google_icon.png',
+              width: 20,
+              height: 20,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.account_circle,
+                  color: Color(0xFF292929),
+                );
+              },
+            ),
+            const SizedBox(width: 10),
+            const Text('Sign up with Google'),
+          ],
         ),
       ),
     );
@@ -377,4 +567,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ],
     );
   }
+
+
 }
