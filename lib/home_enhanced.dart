@@ -535,8 +535,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                                 child: _DetailsPage(
                                   heroTag: 'post-$i',
                                   imageUrl:
-                                  post.imageUrl ??
-                                      'https://picsum.photos/seed/$i/1000/600',
+                                  post.imageUrl??'',
                                   title: post.title,
                                   description: '${post.description}',
                                   status: post.status,
@@ -733,29 +732,49 @@ class _PostCard extends StatelessWidget {
         onTap: onTap,
         child: Column(
           children: [
-            Hero(
-              tag: 'post-$index',
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: imageUrl != null
-                    ? Image.network(
-                  imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Text('No image available'),
-                    ),
-                  ),
-                )
-                    : Container(
+          Hero(
+          tag: 'post-$index',
+            flightShuttleBuilder: (_, animation, __, ___, ____) {
+              return AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) => Container(
+                  decoration: const BoxDecoration(color: Colors.white),
+                  child: child,
+                ),
+              );
+            }, child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: (imageUrl != null && imageUrl!.isNotEmpty)
+                  ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[200],
                   child: const Center(
-                    child: Text('No image available'),
+                    child: Text(
+                      'No image available',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+                  : Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Text(
+                    'No image available',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
-            ),
+            )
+          ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -857,33 +876,41 @@ Widget build(BuildContext context) {
     ),
     body: ListView(
       children: [
-        // Hero image
         Hero(
           tag: heroTag,
           child: AspectRatio(
             aspectRatio: 16 / 9,
-            child: imageUrl.isNotEmpty
+            child: (imageUrl.isNotEmpty)
                 ? Image.network(
               imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Text('No image available'),
+              errorBuilder: (_, __, ___) => Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Text(
+                    'No image available',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 16,
+                    ),
                   ),
-                );
-              },
+                ),
+              ),
             )
                 : Container(
               color: Colors.grey[200],
               child: const Center(
-                child: Text('No image available'),
+                child: Text(
+                  'No image available',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
           ),
         ),
-
         // Status chip
         Padding(
           padding: const EdgeInsets.all(16),

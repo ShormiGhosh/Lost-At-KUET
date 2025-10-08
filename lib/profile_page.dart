@@ -356,7 +356,7 @@ class _PostsTabState extends State<_PostsTab> {
           opacity: a,
           child: _PostDetailsPage(
             heroTag: 'profile-post-${post['id']}',
-            imageUrl: post['image_url'],
+            imageUrl: post['image_url']?? null,
             title: post['title'] ?? 'Untitled',
             description: post['description'] ?? '',
             status: post['status'] ?? 'Unknown',
@@ -408,12 +408,12 @@ class _PostsTabState extends State<_PostsTab> {
                           errorBuilder:
                               (_, __, ___) => Container(
                                 color: Colors.grey[200],
-                                child: const Center(child: Text('No image')),
+                                child: const Center(child: Text('No image available')),
                               ),
                         )
                         : Container(
                           color: Colors.grey[200],
-                          child: const Center(child: Text('No image')),
+                          child: const Center(child: Text('No image available')),
                         ),
               ),
               Positioned(
@@ -449,8 +449,9 @@ class _PostsTabState extends State<_PostsTab> {
                   tooltip: 'Edit post',
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete),
+                  icon: const Icon(Icons.delete_outline),
                   onPressed: () async {
+                    // Show confirmation dialog
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -463,6 +464,9 @@ class _PostsTabState extends State<_PostsTab> {
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
                             child: const Text('Delete'),
                           ),
                         ],
@@ -473,8 +477,8 @@ class _PostsTabState extends State<_PostsTab> {
                       await _deletePost(post['id']);
                     }
                   },
+                  tooltip: 'Delete post',
                 )
-
               ],
             ),
           ),
@@ -501,47 +505,36 @@ class _PostsTabState extends State<_PostsTab> {
   }
   Future<void> _deletePost(int postId) async {
     try {
-      // Show confirmation dialog
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete post?'),
-          content: const Text('This action cannot be undone.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed != true) return;
-
       // Delete from Supabase
       await supabase
           .from('posts')
           .delete()
           .match({'id': postId});
 
+      // Remove post from local list and update UI
       if (mounted) {
         setState(() {
-          // Remove post from local list
           _userPosts.removeWhere((post) => post['id'] == postId);
         });
+
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post deleted successfully')),
+          const SnackBar(
+            content: Text('Post deleted successfully'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (error) {
       debugPrint('Error deleting post: $error');
       if (mounted) {
+        // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting post: $error')),
+          SnackBar(
+            content: Text('Error deleting post: $error'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -1053,42 +1046,7 @@ class _PostDetailsPage extends StatelessWidget {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // Handle edit
-                    },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Edit Post'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF292929),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Handle delete
-                      Navigator.of(context).pop();
-                    },
-                    icon: const Icon(Icons.delete),
-                    label: const Text('Delete'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+
         ],
       ),
     );
