@@ -11,7 +11,6 @@ import 'models/profile.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
-import 'notifications_page.dart';
 
 const _amber = Color(0xFFFFC815); // warm amber
 const _charcoal = Color(0xFF292929); // dark header bg
@@ -732,7 +731,6 @@ class _PostCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Hero(
               tag: 'post-$index',
