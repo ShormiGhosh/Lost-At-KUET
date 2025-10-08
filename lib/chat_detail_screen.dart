@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'models/chat.dart';
-import 'models/message.dart';
+import 'package:LostAtKuet/models/chat.dart';
+import 'package:LostAtKuet/models/message.dart';
+
 
 class ChatDetailPage extends StatefulWidget {
   final Chat chat;
