@@ -309,6 +309,13 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   onFocusChange: (_) => setState(() {}),
                   child: TextField(
                     focusNode: _searchFocus,
+                    readOnly: true, // Make it non-editable
+                    onTap: () {
+                      // Open SearchPage when tapped
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SearchPage()),
+                      );
+                    },
                     decoration: const InputDecoration(
                       hintText: 'Search item, color, place…',
                       prefixIcon: Icon(Icons.search),
@@ -1034,56 +1041,28 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  final supabase = Supabase.instance.client;
+  List<Post> _allPosts = [];
+  bool _isLoading = true;
 
-  List<Map<String, dynamic>> get _filteredPosts {
-    if (_searchQuery.isEmpty) return [];
+  List<Post> get _filteredPosts {
+    if (_searchQuery.isEmpty) return _allPosts;
 
     final query = _searchQuery.toLowerCase();
 
-    // This EXACTLY matches what's shown on your home page
-    final List<Map<String, dynamic>> allHomePagePosts = List.generate(12, (index) {
-      final isLost = index.isEven;
-
-      // Your home page shows: "Lost: Black Wallet #0", "Found: Phone #1", etc.
-      return {
-        'title': isLost ? 'Lost: Black Wallet #$index' : 'Found: Phone #$index',
-        'location': 'Cafeteria',
-        'time': '${index + 1}h',
-        'category': 'Electronics',
-        'isLost': isLost,
-        'searchableText': isLost ?
-        'lost black wallet cafeteria electronics ${index + 1}h' :
-        'found phone cafeteria electronics ${index + 1}h',
-      };
-    });
-
-    // Add "Near you" posts (6 Black Wallet posts)
-    final List<Map<String, dynamic>> nearYouPosts = List.generate(6, (index) {
-      return {
-        'title': 'Black Wallet',
-        'location': 'Cafeteria',
-        'time': '2h',
-        'category': 'Personal',
-        'isLost': true,
-        'searchableText': 'black wallet cafeteria personal 2h near you',
-      };
-    });
-
-    // Combine all posts
-    final List<Map<String, dynamic>> allPosts = [...allHomePagePosts, ...nearYouPosts];
-
-    return allPosts.where((post) {
-      final searchableText = post['searchableText'].toString().toLowerCase();
-      final title = post['title'].toString().toLowerCase();
-
-      // Search in the combined searchable text
-      return searchableText.contains(query) || title.contains(query);
+    return _allPosts.where((post) {
+      return post.title.toLowerCase().contains(query) ||
+          post.description.toLowerCase().contains(query) ||
+          post.location.toLowerCase().contains(query) ||
+          post.category.toLowerCase().contains(query) ||
+          post.status.toLowerCase().contains(query);
     }).toList();
   }
 
   @override
   void initState() {
     super.initState();
+    _loadAllPosts();
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -1095,6 +1074,45 @@ class _SearchPageState extends State<SearchPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAllPosts() async {
+    try {
+      setState(() => _isLoading = true);
+
+      final posts = await supabase
+          .from('posts')
+          .select()
+          .order('created_at', ascending: false);
+
+      if (mounted) {
+        setState(() {
+          _allPosts = posts.map((post) => Post.fromJson(post)).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading posts for search: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
+
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()} years ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()} months ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
   }
 
   @override
@@ -1114,7 +1132,9 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ),
       ),
-      body: _searchQuery.isEmpty
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _searchQuery.isEmpty
           ? _buildSearchSuggestions()
           : _buildSearchResults(),
     );
@@ -1155,20 +1175,24 @@ class _SearchPageState extends State<SearchPage> {
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: _filteredPosts.length,
       itemBuilder: (context, index) {
         final post = _filteredPosts[index];
-        final i = index;
 
+        // Use the same _PostCard constructor that matches your home page
         return _PostCard(
-          index: i,
-          title: post['title'],
-          description: 'Near ${post['location']} • ${post['time']} ago • ${post['category']}',
-          status: post['isLost'] ? 'Lost' : 'Found',
-          chipColor: post['isLost'] ? Colors.red[400]! : Colors.green[400]!,
-          location: post['location'],
-          createdAt: DateTime.now().subtract(Duration(hours: int.parse(post['time'].replaceAll('h', '')))),
-          category: post['category'],
+          index: index,
+          title: post.title,
+          description: post.description,
+          status: post.status,
+          chipColor: post.status.toLowerCase() == 'lost'
+              ? Colors.red[400]!
+              : Colors.green[400]!,
+          location: post.location,
+          createdAt: post.createdAt,
+          imageUrl: post.imageUrl,
+          category: post.category,
           onTap: () {
             Navigator.of(context).push(
               PageRouteBuilder(
@@ -1176,14 +1200,14 @@ class _SearchPageState extends State<SearchPage> {
                 pageBuilder: (_, a, __) => FadeTransition(
                   opacity: a,
                   child: _DetailsPage(
-                    heroTag: 'search-$i',
-                    imageUrl: 'https://picsum.photos/seed/$i/1000/600',
-                    title: post['title'],
-                    description: 'Near ${post['location']} • ${post['time']} ago • ${post['category']}',
-                    status: post['isLost'] ? 'Lost' : 'Found',
-                    location: post['location'],
-                    category: post['category'],
-                    createdAt: DateTime.now().subtract(Duration(hours: int.parse(post['time'].replaceAll('h', '')))),
+                    heroTag: 'search-$index',
+                    imageUrl: post.imageUrl ?? 'https://picsum.photos/seed/$index/1000/600',
+                    title: post.title,
+                    description: post.description,
+                    status: post.status,
+                    location: post.location,
+                    category: post.category,
+                    createdAt: post.createdAt,
                   ),
                 ),
               ),
