@@ -56,14 +56,14 @@ class _LostKuetShellState extends State<LostKuetShell> with TickerProviderStateM
       ),
       floatingActionButton: _index == 0
           ? AnimatedScale(
-              scale: 1,
-              duration: const Duration(milliseconds: 250),
-              child: FloatingActionButton.extended(
-                onPressed: () => _showPostSheet(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Post'),
-              ),
-            )
+        scale: 1,
+        duration: const Duration(milliseconds: 250),
+        child: FloatingActionButton.extended(
+          onPressed: () => _showPostSheet(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Post'),
+        ),
+      )
           : null,
     );
   }
@@ -74,10 +74,10 @@ class _AnimIcon extends StatelessWidget {
   const _AnimIcon({required this.icon});
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.96, end: 1),
-        duration: const Duration(milliseconds: 180),
-        builder: (_, s, __) => Transform.scale(scale: s, child: Icon(icon)),
-      );
+    tween: Tween(begin: 0.96, end: 1),
+    duration: const Duration(milliseconds: 180),
+    builder: (_, s, __) => Transform.scale(scale: s, child: Icon(icon)),
+  );
 }
 
 void _showPostSheet(BuildContext context) {
@@ -100,20 +100,25 @@ class HomeEnhancedPage extends StatefulWidget {
   const HomeEnhancedPage({super.key});
   @override
   State<HomeEnhancedPage> createState() => _HomeEnhancedPageState();
+
 }
 
 class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProviderStateMixin {
   final _scroll = ScrollController();
   final _searchFocus = FocusNode();
 
+
+
+
   bool _filtersExpanded = true;
   bool _isLost = true;
 
   late final AnimationController _headerCtrl = AnimationController(
-    vsync: this, duration: const Duration(milliseconds: 450))..forward();
+      vsync: this, duration: const Duration(milliseconds: 450))..forward();
 
   late final AnimationController _staggerCtrl = AnimationController(
-    vsync: this, duration: const Duration(milliseconds: 700))..forward();
+      vsync: this, duration: const Duration(milliseconds: 700))..forward();
+
 
   @override
   void initState() {
@@ -122,8 +127,9 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
       final hide = _scroll.offset > 140;
       if (hide == _filtersExpanded) setState(() => _filtersExpanded = !hide);
     });
-  }
 
+
+  }
   @override
   void dispose() {
     _scroll.dispose();
@@ -132,7 +138,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
     _staggerCtrl.dispose();
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
@@ -149,7 +154,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
                 children: [
                   // Logo + title + location (slide+fade in)
                   FadeTransition(
-                    opacity: CurvedAnimation(parent: _headerCtrl, curve: const Interval(0, .9, curve: Curves.easeOut))),
+                      opacity: CurvedAnimation(parent: _headerCtrl, curve: const Interval(0, .9, curve: Curves.easeOut))),
                   SlideTransition(
                     position: Tween<Offset>(begin: const Offset(0, .15), end: Offset.zero)
                         .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut)),
@@ -172,7 +177,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
                   const Spacer(),
                   // notifications (fade-in from right)
                   FadeTransition(
-                    opacity: CurvedAnimation(parent: _headerCtrl, curve: const Interval(.3, 1, curve: Curves.easeOut))),
+                      opacity: CurvedAnimation(parent: _headerCtrl, curve: const Interval(.3, 1, curve: Curves.easeOut))),
                   SlideTransition(
                     position: Tween<Offset>(begin: const Offset(.15, 0), end: Offset.zero)
                         .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut)),
@@ -205,150 +210,160 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
               child: Focus(
                 onFocusChange: (_) => setState(() {}),
                 child: TextField(
-                  focusNode: _searchFocus,
+                  readOnly: true, // ADD THIS
+                  onTap: () { // ADD THIS BLOCK
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SearchPage()),
+                    );
+                  },
                   decoration: const InputDecoration(
                     hintText: 'Search item, color, place…',
                     prefixIcon: Icon(Icons.search),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   ),
-                  onSubmitted: (q) {},
                 ),
               ),
             ),
           ),
         ),
 
-        // Toggle + Filters
-        SliverToBoxAdapter(
-          child: Container(
-            color: _charcoal,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: SegmentedButton<bool>(
-                      key: ValueKey(_isLost),
-                      segments: const [
-                        ButtonSegment(value: true, label: Text('Lost')),
-                        ButtonSegment(value: false, label: Text('Found')),
-                      ],
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.resolveWith((s) =>
-                            s.contains(WidgetState.selected) ? _amber.withOpacity(.25) : Colors.white),
-                        foregroundColor: WidgetStateProperty.all(Colors.black87),
+        // Show search results or normal UI
+
+        ...[
+          // Toggle + Filters
+          SliverToBoxAdapter(
+            child: Container(
+              color: _charcoal,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: SegmentedButton<bool>(
+                        key: ValueKey(_isLost),
+                        segments: const [
+                          ButtonSegment(value: true, label: Text('Lost')),
+                          ButtonSegment(value: false, label: Text('Found')),
+                        ],
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStateProperty.resolveWith((s) =>
+                          s.contains(WidgetState.selected) ? _amber.withOpacity(.25) : Colors.white),
+                          foregroundColor: WidgetStateProperty.all(Colors.black87),
+                        ),
+                        selected: {_isLost},
+                        onSelectionChanged: (s) => setState(() => _isLost = s.first),
                       ),
-                      selected: {_isLost},
-                      onSelectionChanged: (s) => setState(() => _isLost = s.first),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () => setState(() => _filtersExpanded = !_filtersExpanded),
-                  icon: const Icon(Icons.tune, color: Colors.white),
-                  tooltip: 'Filters',
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => setState(() => _filtersExpanded = !_filtersExpanded),
+                    icon: const Icon(Icons.tune, color: Colors.white),
+                    tooltip: 'Filters',
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: AnimatedOpacity(
-            opacity: _filtersExpanded ? 1 : 0,
-            duration: const Duration(milliseconds: 220),
-            child: AnimatedSize(
+          SliverToBoxAdapter(
+            child: AnimatedOpacity(
+              opacity: _filtersExpanded ? 1 : 0,
               duration: const Duration(milliseconds: 220),
-              curve: Curves.easeInOut,
-              child: SizedBox(
-                height: _filtersExpanded ? 46 : 0,
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  scrollDirection: Axis.horizontal,
-                  children: const [_Chip('Category'), _Chip('Distance'), _Chip('Time'), _Chip('Reward')],
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOut,
+                child: SizedBox(
+                  height: _filtersExpanded ? 46 : 0,
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    scrollDirection: Axis.horizontal,
+                    children: const [_Chip('Category'), _Chip('Distance'), _Chip('Time'), _Chip('Reward')],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
 
-        // Near you
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Text('Near you', style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
-                TextButton(onPressed: () {}, child: const Text('See all')),
-              ],
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 210,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: 6,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.92, end: 1),
-                duration: const Duration(milliseconds: 320),
-                curve: Curves.easeOutBack,
-                builder: (_, s, child) => Transform.scale(scale: s, child: child),
-                child: _MiniCard(i: i),
+          // Near you
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  Text('Near you', style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  TextButton(onPressed: () {}, child: const Text('See all')),
+                ],
               ),
             ),
           ),
-        ),
-
-        // Latest posts (staggered)
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text('Latest posts', style: Theme.of(context).textTheme.titleMedium),
-          ),
-        ),
-        SliverList.builder(
-          itemCount: 12,
-          itemBuilder: (_, i) {
-            final start = i * 0.06;
-            final end = (start + .55).clamp(0.0, 1.0);
-            final anim = CurvedAnimation(parent: _staggerCtrl, curve: Interval(start, end, curve: Curves.easeOut));
-            return AnimatedBuilder(
-              animation: anim,
-              builder: (context, child) => Opacity(
-                opacity: anim.value,
-                child: Transform.translate(offset: Offset(0, (1 - anim.value) * 18), child: child),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 210,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: 6,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, i) => TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.92, end: 1),
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutBack,
+                  builder: (_, s, child) => Transform.scale(scale: s, child: child),
+                  child: _MiniCard(i: i),
+                ),
               ),
-              child: _PostCard(
-                index: i,
-                isLost: _isLost ? i.isEven : !i.isEven,
-                title: _isLost ? 'Lost: Black Wallet #$i' : 'Found: Phone #$i',
-                subtitle: 'Near Cafeteria • ${i + 1}h ago • Electronics',
-                chipColor: _isLost ? Colors.red[400]! : Colors.green[400]!,
-                onTap: () => Navigator.of(context).push(
-                  PageRouteBuilder(
-                    transitionDuration: const Duration(milliseconds: 350),
-                    pageBuilder: (_, a, __) => FadeTransition(
-                      opacity: a,
-                      child: _DetailsPage(
-                        heroTag: 'post-$i',
-                        imageUrl: 'https://picsum.photos/seed/$i/1000/600',
-                        title: _isLost ? 'Lost: Black Wallet #$i' : 'Found: Phone #$i',
+            ),
+          ),
+
+          // Latest posts
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Text('Latest posts', style: Theme.of(context).textTheme.titleMedium),
+            ),
+          ),
+          SliverList.builder(
+            itemCount: 12,
+            itemBuilder: (_, listIndex) {
+              final i = listIndex;
+              final start = i * 0.06;
+              final end = (start + .55).clamp(0.0, 1.0);
+              final anim = CurvedAnimation(parent: _staggerCtrl, curve: Interval(start, end, curve: Curves.easeOut));
+              return AnimatedBuilder(
+                animation: anim,
+                builder: (context, child) => Opacity(
+                  opacity: anim.value,
+                  child: Transform.translate(offset: Offset(0, (1 - anim.value) * 18), child: child),
+                ),
+                child: _PostCard(
+                  index: i,
+                  isLost: _isLost ? i.isEven : !i.isEven,
+                  title: _isLost ? 'Lost: Black Wallet #$i' : 'Found: Phone #$i',
+                  subtitle: 'Near Cafeteria • ${i + 1}h ago • Electronics',
+                  chipColor: _isLost ? Colors.red[400]! : Colors.green[400]!,
+                  onTap: () => Navigator.of(context).push(
+                    PageRouteBuilder(
+                      transitionDuration: const Duration(milliseconds: 350),
+                      pageBuilder: (_, a, __) => FadeTransition(
+                        opacity: a,
+                        child: _DetailsPage(
+                          heroTag: 'post-$i',
+                          imageUrl: 'https://picsum.photos/seed/$i/1000/600',
+                          title: _isLost ? 'Lost: Black Wallet #$i' : 'Found: Phone #$i',
+                        ),
+
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 96)),
+              );
+            },
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
+        ],
       ],
     );
   }
@@ -488,4 +503,168 @@ class _DetailsPage extends StatelessWidget {
       ),
     );
   }
+
+
 }
+class SearchPage extends StatefulWidget {
+  const SearchPage({super.key});
+
+  @override
+  State<SearchPage> createState() => _SearchPageState();
+}
+
+class _SearchPageState extends State<SearchPage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  List<Map<String, dynamic>> get _filteredPosts {
+    if (_searchQuery.isEmpty) return [];
+
+    final query = _searchQuery.toLowerCase();
+
+    // This EXACTLY matches what's shown on your home page
+    final List<Map<String, dynamic>> allHomePagePosts = List.generate(12, (index) {
+      final isLost = index.isEven;
+
+      // Your home page shows: "Lost: Black Wallet #0", "Found: Phone #1", etc.
+      return {
+        'title': isLost ? 'Lost: Black Wallet #$index' : 'Found: Phone #$index',
+        'location': 'Cafeteria',
+        'time': '${index + 1}h',
+        'category': 'Electronics',
+        'isLost': isLost,
+        'searchableText': isLost ?
+        'lost black wallet cafeteria electronics ${index + 1}h' :
+        'found phone cafeteria electronics ${index + 1}h',
+      };
+    });
+
+    // Add "Near you" posts (6 Black Wallet posts)
+    final List<Map<String, dynamic>> nearYouPosts = List.generate(6, (index) {
+      return {
+        'title': 'Black Wallet',
+        'location': 'Cafeteria',
+        'time': '2h',
+        'category': 'Personal',
+        'isLost': true,
+        'searchableText': 'black wallet cafeteria personal 2h near you',
+      };
+    });
+
+    // Combine all posts
+    final List<Map<String, dynamic>> allPosts = [...allHomePagePosts, ...nearYouPosts];
+
+    return allPosts.where((post) {
+      final searchableText = post['searchableText'].toString().toLowerCase();
+      final title = post['title'].toString().toLowerCase();
+
+      // Search in the combined searchable text
+      return searchableText.contains(query) || title.contains(query);
+    }).toList();
+  }
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: TextField(
+          controller: _searchController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Search item, color, place…',
+            border: InputBorder.none,
+          ),
+        ),
+      ),
+      body: _searchQuery.isEmpty
+          ? _buildSearchSuggestions()
+          : _buildSearchResults(),
+    );
+  }
+
+  Widget _buildSearchSuggestions() {
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Search Items',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 16),
+          Text('Type to search through all posts from the main newsfeed'),
+          SizedBox(height: 8),
+          Text('Examples: wallet, phone, cafeteria, library, academic'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    if (_filteredPosts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No posts found'),
+            Text('Try different keywords'),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _filteredPosts.length,
+      itemBuilder: (context, index) {
+        final post = _filteredPosts[index];
+        final i = index; // Use index for consistent image seeding
+
+        return _PostCard(
+          index: i,
+          isLost: post['isLost'],
+          title: post['title'],
+          subtitle: 'Near ${post['location']} • ${post['time']} ago • ${post['category']}',
+          chipColor: post['isLost'] ? Colors.red[400]! : Colors.green[400]!,
+          onTap: () {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 350),
+                pageBuilder: (_, a, __) => FadeTransition(
+                  opacity: a,
+                  child: _DetailsPage(
+                    heroTag: 'search-$i',
+                    imageUrl: 'https://picsum.photos/seed/$i/1000/600',
+                    title: post['title'],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
