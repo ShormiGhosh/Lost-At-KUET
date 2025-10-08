@@ -107,9 +107,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
   final _scroll = ScrollController();
   final _searchFocus = FocusNode();
 
-
-
-
   bool _filtersExpanded = true;
   bool _isLost = true;
 
@@ -119,7 +116,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
   late final AnimationController _staggerCtrl = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 700))..forward();
 
-
   @override
   void initState() {
     super.initState();
@@ -127,9 +123,8 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
       final hide = _scroll.offset > 140;
       if (hide == _filtersExpanded) setState(() => _filtersExpanded = !hide);
     });
-
-
   }
+
   @override
   void dispose() {
     _scroll.dispose();
@@ -138,6 +133,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
     _staggerCtrl.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
@@ -154,36 +150,38 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
                 children: [
                   // Logo + title + location (slide+fade in)
                   FadeTransition(
-                      opacity: CurvedAnimation(parent: _headerCtrl, curve: const Interval(0, .9, curve: Curves.easeOut))),
-                  SlideTransition(
-                    position: Tween<Offset>(begin: const Offset(0, .15), end: Offset.zero)
-                        .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // replace with your asset
-                        // put assets/lostatkuet_icon.png in pubspec
-                        Image.asset('assets/lostatkuet_icon.png', height: 36, errorBuilder: (_, __, ___) {
-                          return Icon(Icons.location_on, size: 36, color: _amber);
-                        }),
-                        const SizedBox(height: 6),
-                        const Text('Lost @ KUET',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
-                        const SizedBox(height: 2),
-                        const _LocRow(),
-                      ],
+                    opacity: CurvedAnimation(parent: _headerCtrl, curve: const Interval(0, .9, curve: Curves.easeOut)),
+                    child: SlideTransition(
+                      position: Tween<Offset>(begin: const Offset(0, .15), end: Offset.zero)
+                          .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // replace with your asset
+                          // put assets/lostatkuet_icon.png in pubspec
+                          Image.asset('assets/lostatkuet_icon.png', height: 36, errorBuilder: (_, __, ___) {
+                            return Icon(Icons.location_on, size: 36, color: _amber);
+                          }),
+                          const SizedBox(height: 6),
+                          const Text('Lost @ KUET',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                          const SizedBox(height: 2),
+                          const _LocRow(),
+                        ],
+                      ),
                     ),
                   ),
                   const Spacer(),
                   // notifications (fade-in from right)
                   FadeTransition(
-                      opacity: CurvedAnimation(parent: _headerCtrl, curve: const Interval(.3, 1, curve: Curves.easeOut))),
-                  SlideTransition(
-                    position: Tween<Offset>(begin: const Offset(.15, 0), end: Offset.zero)
-                        .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut)),
-                    child: IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.notifications_none, color: Colors.white),
+                    opacity: CurvedAnimation(parent: _headerCtrl, curve: const Interval(.3, 1, curve: Curves.easeOut)),
+                    child: SlideTransition(
+                      position: Tween<Offset>(begin: const Offset(.15, 0), end: Offset.zero)
+                          .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut)),
+                      child: IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.notifications_none, color: Colors.white),
+                      ),
                     ),
                   ),
                 ],
@@ -354,7 +352,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage> with TickerProvider
                           imageUrl: 'https://picsum.photos/seed/$i/1000/600',
                           title: _isLost ? 'Lost: Black Wallet #$i' : 'Found: Phone #$i',
                         ),
-
                       ),
                     ),
                   ),
@@ -503,9 +500,8 @@ class _DetailsPage extends StatelessWidget {
       ),
     );
   }
-
-
 }
+
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
@@ -562,6 +558,7 @@ class _SearchPageState extends State<SearchPage> {
       return searchableText.contains(query) || title.contains(query);
     }).toList();
   }
+
   @override
   void initState() {
     super.initState();
@@ -667,4 +664,3 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 }
-
