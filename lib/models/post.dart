@@ -5,6 +5,7 @@ class Post {
   final String status;
   final String category;
   final String? imageUrl;
+  final String userId;
   final DateTime createdAt;
 
   Post({
@@ -15,6 +16,7 @@ class Post {
     required this.category,
     this.imageUrl,
     required this.createdAt,
+    required this.userId,
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class Post {
       category: json['category'] as String,
       imageUrl: json['image_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      userId: json['user_id'] as String? ?? (json['user'] != null ? json['user']['id'] as String : ''),
     );
   }
 }

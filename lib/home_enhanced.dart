@@ -11,6 +11,7 @@ import 'models/profile.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
+import 'services/chat_service.dart';
 import 'notifications_page.dart';
 
 const _amber = Color(0xFFFFC815); // warm amber
@@ -542,11 +543,13 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                                   location: post.location,
                                   category: post.category,
                                   createdAt: post.createdAt,
+                                  posterId: post.userId,
                                 ),
                               ),
                         ),
                       ),
                   category: '${post.category}',
+                  posterId: post.userId,
                 ),
               );
             },
@@ -639,11 +642,11 @@ class _MiniCard extends StatelessWidget {
           onTap:
               () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder:
+                      builder:
                       (_) => _DetailsPage(
                         heroTag: 'mini-$i',
                         imageUrl: img,
-                        title: 'Black Wallet', description: 'A black leather wallet lost near cafeteria.', status: 'Lost', location: 'Cafeteria', category: 'Accessories', createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+                        title: 'Black Wallet', description: 'A black leather wallet lost near cafeteria.', status: 'Lost', location: 'Cafeteria', category: 'Accessories', createdAt: DateTime.now().subtract(const Duration(hours: 2)), posterId: 'unknown',
                       ),
                 ),
               ),
@@ -691,6 +694,7 @@ class _PostCard extends StatelessWidget {
   final String? imageUrl;
   final String category;
   final VoidCallback onTap;
+  final String posterId;
 
   const _PostCard({
     required this.index,
@@ -703,6 +707,7 @@ class _PostCard extends StatelessWidget {
     this.imageUrl,
     required this.category,
     required this.onTap,
+    required this.posterId,
   });
 
   String _getTimeAgo(DateTime dateTime) {
@@ -795,6 +800,37 @@ class _PostCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      // Chat button: open/create direct chat with poster
+                      IconButton(
+                        onPressed: () async {
+                          final supabase = Supabase.instance.client;
+                          final currentUser = supabase.auth.currentUser;
+                          if (currentUser == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sign in to message')));
+                            return;
+                          }
+                          final chatService = ChatService(supabase);
+                          try {
+                            final chat = await chatService.createOrGetDirectChat(currentUser.id, posterId);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)));
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error opening chat: $e')));
+                          }
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        tooltip: 'Message poster',
+                      ),
+                      // Inbox shortcut: open chat list
+                      IconButton(
+                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage())),
+                        icon: const Icon(Icons.mail_outline),
+                        tooltip: 'Open inbox',
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -814,6 +850,7 @@ class _DetailsPage extends StatelessWidget {
   final String location;
   final String category;
   final DateTime createdAt;
+  final String posterId;
 
   const _DetailsPage({
     required this.heroTag,
@@ -824,6 +861,7 @@ class _DetailsPage extends StatelessWidget {
     required this.location,
     required this.category,
     required this.createdAt,
+    required this.posterId,
   });
 
 
@@ -943,24 +981,21 @@ Widget build(BuildContext context) {
         Padding(
           padding: const EdgeInsets.all(16),
           child: ElevatedButton.icon(
-            onPressed: () {
-              final chat = Chat(
-                id: 'chat_${title.hashCode}',
-                user1Id: 'current_user_id',
-                user2Id: 'poster_id',
-                otherUser: Profile(
-                  id: 'poster_id',
-                  username: 'Poster Name',
-                ),
-                createdAt: DateTime.now(),
-              );
+            onPressed: () async {
+              final supabase = Supabase.instance.client;
+              final currentUser = supabase.auth.currentUser;
+              if (currentUser == null) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You must be signed in to contact the poster')));
+                return;
+              }
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatDetailPage(chat: chat),
-                ),
-              );
+              final chatService = ChatService(supabase);
+              try {
+                final chat = await chatService.createOrGetDirectChat(currentUser.id, posterId);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)));
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error opening chat: $e')));
+              }
             },
             icon: const Icon(Icons.chat_bubble_outline),
             label: const Text('Contact Poster'),

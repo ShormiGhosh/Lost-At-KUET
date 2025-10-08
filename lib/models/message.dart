@@ -7,6 +7,7 @@ class Message {
   final String content;
   final DateTime createdAt;
   final bool read;
+  final DateTime? readAt;
   final Profile sender;
 
   Message({
@@ -16,6 +17,7 @@ class Message {
     required this.content,
     required this.createdAt,
     required this.read,
+    this.readAt,
     required this.sender,
   });
 
@@ -27,7 +29,30 @@ class Message {
       content: json['content'],
       createdAt: DateTime.parse(json['created_at']),
       read: json['read'] ?? false,
+      readAt: json['read_at'] != null ? DateTime.parse(json['read_at']) : null,
       sender: Profile.fromJson(json['profiles']),
+    );
+  }
+
+  Message copyWith({
+    String? id,
+    String? chatId,
+    String? senderId,
+    String? content,
+    DateTime? createdAt,
+    bool? read,
+    DateTime? readAt,
+    Profile? sender,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      senderId: senderId ?? this.senderId,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      read: read ?? this.read,
+      readAt: readAt ?? this.readAt,
+      sender: sender ?? this.sender,
     );
   }
 }

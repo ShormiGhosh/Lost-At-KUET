@@ -8,14 +8,16 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  late bool _isDarkMode;
-  late bool _notificationsEnabled;
-  late bool _locationEnabled;
-  late bool _biometricAuth;
-  late bool _autoSync;
-  late double _mapRadius;
-  late String _language;
-  late String _themeColor;
+  // initialize with defaults to avoid late initialization errors
+  bool _isDarkMode = false;
+  bool _notificationsEnabled = true;
+  bool _locationEnabled = true;
+  bool _biometricAuth = false;
+  bool _autoSync = true;
+  double _mapRadius = 5.0;
+  String _language = 'English';
+  String _themeColor = 'Amber';
+  bool _loaded = false; // becomes true once settings are read
 
   final List<String> _languages = ['English', 'Bengali', 'Hindi', 'Arabic'];
   final List<String> _themeColors = ['Amber', 'Blue', 'Green', 'Purple', 'Pink'];
@@ -37,6 +39,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _mapRadius = prefs.getDouble('mapRadius') ?? 5.0;
       _language = prefs.getString('language') ?? 'English';
       _themeColor = prefs.getString('themeColor') ?? 'Amber';
+      _loaded = true;
     });
   }
 
@@ -149,7 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  bool get _isLoading => _isDarkMode == null;
+  bool get _isLoading => !_loaded;
 
   Widget _buildLoading() {
     return const Center(
