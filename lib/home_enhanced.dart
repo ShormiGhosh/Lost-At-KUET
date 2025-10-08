@@ -8,6 +8,7 @@ import 'create_post_screen.dart';
 import 'models/chat.dart';
 import 'models/post.dart';
 import 'models/profile.dart';
+import 'notifications_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
@@ -83,22 +84,22 @@ class _LostKuetShellState extends State<LostKuetShell>
         ],
       ),
       floatingActionButton:
-          _index == 0
-              ? AnimatedScale(
-                scale: 1,
-                duration: const Duration(milliseconds: 250),
-                child: FloatingActionButton.extended(
-                  onPressed:
-                      () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const CreatePostScreen(),
-                        ),
-                      ),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Post'),
-                ),
-              )
-              : null,
+      _index == 0
+          ? AnimatedScale(
+        scale: 1,
+        duration: const Duration(milliseconds: 250),
+        child: FloatingActionButton.extended(
+          onPressed:
+              () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const CreatePostScreen(),
+            ),
+          ),
+          icon: const Icon(Icons.add),
+          label: const Text('Post'),
+        ),
+      )
+          : null,
     );
   }
 }
@@ -121,14 +122,14 @@ void _showPostSheet(BuildContext context) {
     isScrollControlled: true,
     builder:
         (_) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 8,
-          ),
-          child: const Text('Post Lost / Found form…'),
-        ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 16,
+        right: 16,
+        top: 8,
+      ),
+      child: const Text('Post Lost / Found form…'),
+    ),
   );
 }
 
@@ -308,6 +309,13 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   onFocusChange: (_) => setState(() {}),
                   child: TextField(
                     focusNode: _searchFocus,
+                    readOnly: true, // Make it non-editable
+                    onTap: () {
+                      // Open SearchPage when tapped
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SearchPage()),
+                      );
+                    },
                     decoration: const InputDecoration(
                       hintText: 'Search item, color, place…',
                       prefixIcon: Icon(Icons.search),
@@ -514,7 +522,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   title: post.title,
                   description: post.description,
                   status: post.status,
-                  // Changed from isLost
                   chipColor:
                   post.status.toLowerCase() == 'lost'
                       ? Colors.red[400]!
@@ -522,6 +529,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   imageUrl: post.imageUrl,
                   location: post.location,
                   createdAt: post.createdAt,
+                  category: post.category,
                   onTap:
                       () =>
                       Navigator.of(context).push(
@@ -534,10 +542,9 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                                 child: _DetailsPage(
                                   heroTag: 'post-$i',
                                   imageUrl:
-                                  post.imageUrl ??
-                                      'https://picsum.photos/seed/$i/1000/600',
+                                  post.imageUrl??'',
                                   title: post.title,
-                                  description: '${post.description}',
+                                  description: post.description,
                                   status: post.status,
                                   location: post.location,
                                   category: post.category,
@@ -546,7 +553,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                               ),
                         ),
                       ),
-                  category: '${post.category}',
                 ),
               );
             },
@@ -638,15 +644,20 @@ class _MiniCard extends StatelessWidget {
         child: InkWell(
           onTap:
               () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder:
-                      (_) => _DetailsPage(
-                        heroTag: 'mini-$i',
-                        imageUrl: img,
-                        title: 'Black Wallet', description: 'A black leather wallet lost near cafeteria.', status: 'Lost', location: 'Cafeteria', category: 'Accessories', createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-                      ),
-                ),
+            MaterialPageRoute(
+              builder:
+                  (_) => _DetailsPage(
+                heroTag: 'mini-$i',
+                imageUrl: img,
+                title: 'Black Wallet',
+                description: 'A black leather wallet lost near cafeteria.',
+                status: 'Lost',
+                location: 'Cafeteria',
+                category: 'Accessories',
+                createdAt: DateTime.now().subtract(const Duration(hours: 2)),
               ),
+            ),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -684,7 +695,7 @@ class _PostCard extends StatelessWidget {
   final int index;
   final String title;
   final String description;
-  final String status; // Changed from bool isLost
+  final String status;
   final Color chipColor;
   final String location;
   final DateTime createdAt;
@@ -696,7 +707,7 @@ class _PostCard extends StatelessWidget {
     required this.index,
     required this.title,
     required this.description,
-    required this.status, // Changed from isLost
+    required this.status,
     required this.chipColor,
     required this.location,
     required this.createdAt,
@@ -717,11 +728,12 @@ class _PostCard extends StatelessWidget {
     } else if (difference.inHours > 0) {
       return '${difference.inHours} hours ago';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} minutes ago';  // Added 'return' here
+      return '${difference.inMinutes} minutes ago';
     } else {
       return 'Just now';
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -732,29 +744,49 @@ class _PostCard extends StatelessWidget {
         onTap: onTap,
         child: Column(
           children: [
-            Hero(
-              tag: 'post-$index',
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: imageUrl != null
-                    ? Image.network(
-                  imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Text('No image available'),
-                    ),
-                  ),
-                )
-                    : Container(
+          Hero(
+          tag: 'post-$index',
+            flightShuttleBuilder: (_, animation, __, ___, ____) {
+              return AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) => Container(
+                  decoration: const BoxDecoration(color: Colors.white),
+                  child: child,
+                ),
+              );
+            }, child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: (imageUrl != null && imageUrl!.isNotEmpty)
+                  ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[200],
                   child: const Center(
-                    child: Text('No image available'),
+                    child: Text(
+                      'No image available',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+                  : Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Text(
+                    'No image available',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
-            ),
+            )
+          ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -839,7 +871,7 @@ class _DetailsPage extends StatelessWidget {
     } else if (difference.inHours > 0) {
       return '${difference.inHours} hours ago';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} minutes ago';  // Added 'return' here
+      return '${difference.inMinutes} minutes ago';
     } else {
       return 'Just now';
     }
@@ -856,33 +888,41 @@ Widget build(BuildContext context) {
     ),
     body: ListView(
       children: [
-        // Hero image
         Hero(
           tag: heroTag,
           child: AspectRatio(
             aspectRatio: 16 / 9,
-            child: imageUrl.isNotEmpty
+            child: (imageUrl.isNotEmpty)
                 ? Image.network(
               imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Text('No image available'),
+              errorBuilder: (_, __, ___) => Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Text(
+                    'No image available',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 16,
+                    ),
                   ),
-                );
-              },
+                ),
+              ),
             )
                 : Container(
               color: Colors.grey[200],
               child: const Center(
-                child: Text('No image available'),
+                child: Text(
+                  'No image available',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
           ),
         ),
-
         // Status chip
         Padding(
           padding: const EdgeInsets.all(16),
@@ -1015,6 +1055,194 @@ class _DetailField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class SearchPage extends StatefulWidget {
+  const SearchPage({super.key});
+
+  @override
+  State<SearchPage> createState() => _SearchPageState();
+}
+
+class _SearchPageState extends State<SearchPage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  final supabase = Supabase.instance.client;
+  List<Post> _allPosts = [];
+  bool _isLoading = true;
+
+  List<Post> get _filteredPosts {
+    if (_searchQuery.isEmpty) return _allPosts;
+
+    final query = _searchQuery.toLowerCase();
+
+    return _allPosts.where((post) {
+      return post.title.toLowerCase().contains(query) ||
+          post.description.toLowerCase().contains(query) ||
+          post.location.toLowerCase().contains(query) ||
+          post.category.toLowerCase().contains(query) ||
+          post.status.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllPosts();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAllPosts() async {
+    try {
+      setState(() => _isLoading = true);
+
+      final posts = await supabase
+          .from('posts')
+          .select()
+          .order('created_at', ascending: false);
+
+      if (mounted) {
+        setState(() {
+          _allPosts = posts.map((post) => Post.fromJson(post)).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading posts for search: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
+
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()} years ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()} months ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: TextField(
+          controller: _searchController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Search item, color, place…',
+            border: InputBorder.none,
+          ),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _searchQuery.isEmpty
+          ? _buildSearchSuggestions()
+          : _buildSearchResults(),
+    );
+  }
+
+  Widget _buildSearchSuggestions() {
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Search Items',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 16),
+          Text('Type to search through all posts from the main newsfeed'),
+          SizedBox(height: 8),
+          Text('Examples: wallet, phone, cafeteria, library, academic'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    if (_filteredPosts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No posts found'),
+            Text('Try different keywords'),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _filteredPosts.length,
+      itemBuilder: (context, index) {
+        final post = _filteredPosts[index];
+
+        // Use the same _PostCard constructor that matches your home page
+        return _PostCard(
+          index: index,
+          title: post.title,
+          description: post.description,
+          status: post.status,
+          chipColor: post.status.toLowerCase() == 'lost'
+              ? Colors.red[400]!
+              : Colors.green[400]!,
+          location: post.location,
+          createdAt: post.createdAt,
+          imageUrl: post.imageUrl,
+          category: post.category,
+          onTap: () {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 350),
+                pageBuilder: (_, a, __) => FadeTransition(
+                  opacity: a,
+                  child: _DetailsPage(
+                    heroTag: 'search-$index',
+                    imageUrl: post.imageUrl ?? 'https://picsum.photos/seed/$index/1000/600',
+                    title: post.title,
+                    description: post.description,
+                    status: post.status,
+                    location: post.location,
+                    category: post.category,
+                    createdAt: post.createdAt,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

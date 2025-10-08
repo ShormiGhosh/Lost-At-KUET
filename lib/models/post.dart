@@ -1,31 +1,51 @@
 class Post {
+  final int id;
+  final String userId;
   final String title;
   final String description;
-  final String location;
   final String status;
   final String category;
+  final String location;
   final String? imageUrl;
   final DateTime createdAt;
 
   Post({
+    required this.id,
+    required this.userId,
     required this.title,
     required this.description,
-    required this.location,
     required this.status,
     required this.category,
+    required this.location,
     this.imageUrl,
     required this.createdAt,
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
-      title: json['title'] as String,
-      description: json['description'] as String,
-      location: json['location'] as String,
-      status: json['status'] as String,
-      category: json['category'] as String,
-      imageUrl: json['image_url'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      id: json['id'],
+      userId: json['user_id'],
+      title: json['title'],
+      description: json['description'],
+      status: json['status'],
+      category: json['category'],
+      location: json['location'],
+      imageUrl: json['image_url'],
+      createdAt: DateTime.parse(json['created_at']),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'description': description,
+      'status': status,
+      'category': category,
+      'location': location,
+      'image_url': imageUrl,
+      'created_at': createdAt.toIso8601String(),
+    };
   }
 }

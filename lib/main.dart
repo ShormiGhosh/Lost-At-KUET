@@ -21,30 +21,55 @@ void main() async {
     anonKey: SupabaseConfig.anonKey,
   );
 
-  // Handle auth state changes and profile creation
   Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
     final event = data.event;
-    final user = data.session?.user; // FIX: Use session.user instead of data.user
+    final session = data.session;
+    final user = session?.user;
+
+    print('Auth state changed: $event');
 
     if (event == AuthChangeEvent.signedIn && user != null) {
-      // Check if profile exists, if not create one
+      print('User signed in: ${user.id}');
+
+      // Wait a bit to ensure session is established
+      await Future.delayed(const Duration(seconds: 2));
+
       try {
         final profile = await Supabase.instance.client
             .from('profiles')
             .select()
             .eq('id', user.id)
-            .maybeSingle() // FIX: Use maybeSingle instead of single with onError
-            .catchError((error) => null); // FIX: Use catchError instead of onError
+            .maybeSingle()
+            .timeout(const Duration(seconds: 10));
 
         if (profile == null) {
-          // Create profile for new user
+          print('Creating profile for new user: ${user.id}');
+
+          final userMetadata = user.userMetadata ?? {};
+          final appMetadata = user.appMetadata ?? {};
+
+          // Extract user info from multiple possible sources
+          final userName = userMetadata['name'] ??
+              userMetadata['full_name'] ??
+              appMetadata['name'] ??
+              'User';
+
+          final userEmail = user.email ??
+              userMetadata['email'] ??
+              appMetadata['email'] ?? '';
+
           await Supabase.instance.client.from('profiles').upsert({
             'id': user.id,
-            'name': user.userMetadata?['name'] ?? 'User',
-            'username': _generateUniqueUsername(user.userMetadata?['name'] ?? 'User'),
-            'email': user.email ?? '',
+            'name': userName,
+            'username': _generateUniqueUsername(userName),
+            'email': userEmail,
+            'avatar_url': userMetadata['avatar_url'],
             'updated_at': DateTime.now().toIso8601String(),
           });
+
+          print('Profile created successfully for user: ${user.id}');
+        } else {
+          print('Profile already exists for user: ${user.id}');
         }
       } catch (error) {
         print('Error handling profile creation: $error');
@@ -239,6 +264,9 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     try {
+      // Clear any cached credentials first
+      await _googleSignIn.signOut();
+
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
@@ -248,9 +276,13 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
+      if (googleAuth.idToken == null) {
+        throw AuthException('Google authentication failed: No ID token received');
+      }
+
+      // Use the ID token method (working approach)
       final AuthResponse response = await supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: googleAuth.idToken!,
@@ -258,13 +290,10 @@ class _MyHomePageState extends State<MyHomePage> {
       );
 
       if (response.user != null) {
-        // Check if user profile exists, if not create one
-        await _createOrUpdateUserProfile(
-            response.user!.id,
-            googleUser.displayName ?? 'User',
-            googleUser.email,
-            googleUser.photoUrl
-        );
+        print('Google Sign-In successful for user: ${response.user!.id}');
+
+        // Wait a bit for the auth state to propagate
+        await Future.delayed(const Duration(seconds: 2));
 
         if (mounted) {
           _showSnackBar('Google Sign-In successful!');
@@ -272,10 +301,12 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       }
     } on AuthException catch (error) {
+      print('Google Sign-In AuthException: ${error.message}');
       if (mounted) {
         _showSnackBar('Google Sign-In failed: ${error.message}');
       }
     } catch (error) {
+      print('Google Sign-In error: $error');
       if (mounted) {
         _showSnackBar('An error occurred during Google Sign-In');
       }
@@ -322,11 +353,10 @@ class _MyHomePageState extends State<MyHomePage> {
   void _navigateToHome() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const SplashScreen()), // <-- CORRECTED DESTINATION
+      MaterialPageRoute(builder: (context) => SplashScreen()), // Remove const if HomeEnhanced has issues
           (route) => false,
     );
   }
-
   void _showSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -429,7 +459,16 @@ class _MyHomePageState extends State<MyHomePage> {
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        child: Row(
+        child: isLoading // ADDED: Loading indicator for Google button
+            ? const SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF292929)),
+          ),
+        )
+            : Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
