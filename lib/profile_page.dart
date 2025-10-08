@@ -348,6 +348,26 @@ class _PostsTabState extends State<_PostsTab> {
     }
   }
 
+  void _showPostDetails(Map<String, dynamic> post) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (_, a, __) => FadeTransition(
+          opacity: a,
+          child: _PostDetailsPage(
+            heroTag: 'profile-post-${post['id']}',
+            imageUrl: post['image_url'],
+            title: post['title'] ?? 'Untitled',
+            description: post['description'] ?? '',
+            status: post['status'] ?? 'Unknown',
+            location: post['location'] ?? '',
+            category: post['category'] ?? '',
+            createdAt: DateTime.parse(post['created_at']),
+          ),
+        ),
+      ),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -372,6 +392,8 @@ class _PostsTabState extends State<_PostsTab> {
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       clipBehavior: Clip.antiAlias,
+        child: InkWell(
+        onTap: () => _showPostDetails(post),
       child: Column(
         children: [
           Stack(
@@ -458,7 +480,7 @@ class _PostsTabState extends State<_PostsTab> {
           ),
         ],
       ),
-    );
+    ),    );
   }
 
   String _getTimeAgo(DateTime dateTime) {
@@ -868,6 +890,206 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+class _DetailField extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _DetailField({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Icon(icon, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                value,
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+class _PostDetailsPage extends StatelessWidget {
+  final String heroTag;
+  final String? imageUrl;
+  final String title;
+  final String description;
+  final String status;
+  final String location;
+  final String category;
+  final DateTime createdAt;
+
+  const _PostDetailsPage({
+    required this.heroTag,
+    this.imageUrl,
+    required this.title,
+    required this.description,
+    required this.status,
+    required this.location,
+    required this.category,
+    required this.createdAt,
+  });
+
+  String _getTimeAgo(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()} years ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()} months ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    }  else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Post Details'),
+        backgroundColor: const Color(0xFF292929),
+        foregroundColor: Colors.white,
+      ),
+      body: ListView(
+        children: [
+          Hero(
+            tag: heroTag,
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: imageUrl != null
+                  ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey[200],
+                  child: const Center(child: Text('No image available')),
+                ),
+              )
+                  : Container(
+                color: Colors.grey[200],
+                child: const Center(child: Text('No image available')),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Chip(
+              label: Text(
+                status.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              backgroundColor: status.toLowerCase() == 'lost'
+                  ? Colors.red[400]
+                  : Colors.green[400],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DetailField(
+                  icon: Icons.title,
+                  label: 'Title',
+                  value: title,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.description,
+                  label: 'Description',
+                  value: description,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.category,
+                  label: 'Category',
+                  value: category,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.location_on,
+                  label: 'Location',
+                  value: location,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.access_time,
+                  label: 'Posted',
+                  value: _getTimeAgo(createdAt),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Handle edit
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Edit Post'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF292929),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Handle delete
+                      Navigator.of(context).pop();
+                    },
+                    icon: const Icon(Icons.delete),
+                    label: const Text('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

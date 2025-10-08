@@ -8,6 +8,7 @@ import 'create_post_screen.dart';
 import 'models/chat.dart';
 import 'models/post.dart';
 import 'models/profile.dart';
+import 'notifications_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
