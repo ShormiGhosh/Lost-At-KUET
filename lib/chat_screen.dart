@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/chat.dart';
 import 'chat_detail_screen.dart';
+import 'services/chat_service.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -15,43 +16,20 @@ class _ChatPageState extends State<ChatPage> {
   bool _loading = false;
   final _supabase = Supabase.instance.client;
   late final String _currentUserId;
+  late final ChatService _chatService;
 
   @override
   void initState() {
     super.initState();
-    _currentUserId = _supabase.auth.currentUser!.id;
-    _loadChats();
+  _currentUserId = _supabase.auth.currentUser!.id;
+  _chatService = ChatService(_supabase);
+  _loadChats();
   }
 
   Future<void> _loadChats() async {
     setState(() => _loading = true);
     try {
-      final response = await _supabase
-          .from('chats')
-          .select('''
-          *,
-          user1:profiles!chats_user1_id_fkey (
-            id,
-            username,
-            avatar_url,
-            name,
-            email
-          ),
-          user2:profiles!chats_user2_id_fkey (
-            id,
-            username,
-            avatar_url,
-            name,
-            email
-          )
-        ''')
-          .or('user1_id.eq.$_currentUserId,user2_id.eq.$_currentUserId')
-          .order('last_message_at', ascending: false);
-
-      final chats = response
-          .map<Chat>((chat) => Chat.fromJson(chat, _currentUserId))
-          .toList();
-
+      final chats = await _chatService.listChatsForUser(_currentUserId);
       setState(() {
         _chats.clear();
         _chats.addAll(chats);

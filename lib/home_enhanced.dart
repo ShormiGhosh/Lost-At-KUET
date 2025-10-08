@@ -11,6 +11,7 @@ import 'models/profile.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
+import 'notifications_page.dart';
 
 const _amber = Color(0xFFFFC815); // warm amber
 const _charcoal = Color(0xFF292929); // dark header bg
@@ -223,7 +224,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // replace with your asset
                           // put assets/lostatkuet_icon.png in pubspec
                           Image.asset(
                             'assets/lostatkuet_icon.png',
@@ -380,7 +380,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                     child: IconButton(
                       onPressed: () {
                         Navigator.of(context).push(MaterialPageRoute(builder: (
-                            _) => const NotificationsPage()));
+                            _) => NotificationsPage()));
                       },
                       icon: const Icon(
                           Icons.notifications_none, color: Colors.white),
