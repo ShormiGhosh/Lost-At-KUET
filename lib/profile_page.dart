@@ -14,29 +14,57 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
+class _ProfilePageState extends State<ProfilePage>
+    with TickerProviderStateMixin {
   final supabase = Supabase.instance.client;
   Map<String, dynamic>? _profile;
   bool _loading = true;
   late final TabController _tabs = TabController(length: 3, vsync: this);
+  int _postCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadPostCount();
+  }
+
+  Future<void> _loadPostCount() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final countData =
+          await supabase.from('posts').select().eq('user_id', user.id).count();
+
+      setState(() => _postCount = countData.count);
+    } catch (e) {
+      debugPrint('Error loading post count: $e');
+    }
   }
 
   Future<void> _loadProfile() async {
     setState(() => _loading = true);
     final user = supabase.auth.currentUser;
     if (user == null) {
-      setState(() { _profile = null; _loading = false; });
+      setState(() {
+        _profile = null;
+        _loading = false;
+      });
       return;
     }
 
-  final res = await supabase.from('profiles').select().eq('id', user.id).maybeSingle();
-  // maybeSingle returns null if not found
-  setState(() { _profile = res; _loading = false; });
+    final res =
+        await supabase
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .maybeSingle();
+    // maybeSingle returns null if not found
+    setState(() {
+      _profile = res;
+      _loading = false;
+    });
   }
 
   // The upload helper was intentionally removed; full-screen editor uses
@@ -54,136 +82,181 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
     return Scaffold(
       body: NestedScrollView(
-        headerSliverBuilder: (_, __) => [
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 260,
-            backgroundColor: cs.surface,
-            elevation: 0,
-            iconTheme: IconThemeData(color: cs.onSurface),
-            title: Text('Profile', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
-            actions: [
-              IconButton(icon: Icon(Icons.share_outlined, color: cs.onSurface), onPressed: () {}),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: SingleChildScrollView(
-                child:Container(
-                // ensure the flexible space content sits below the toolbar/title
-                padding: EdgeInsets.fromLTRB(16, kToolbarHeight + 12, 16, 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [cs.surface, const Color(0xFFF3F4F6)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+        headerSliverBuilder:
+            (_, __) => [
+              SliverAppBar(
+                pinned: true,
+                expandedHeight: 260,
+                backgroundColor: cs.surface,
+                elevation: 0,
+                iconTheme: IconThemeData(color: cs.onSurface),
+                title: Text(
+                  'Profile',
+                  style: TextStyle(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () async {
-                            final didSave = await Navigator.of(context).push<bool>(
-                              MaterialPageRoute(builder: (_) => EditProfilePage(profile: _profile)),
-                            );
-                            if (didSave == true) await _loadProfile();
-                          },
-                          child: Hero(
-                            tag: 'me-avatar',
-                            child: avatar != null
-                                ? CircleAvatar(radius: 34, backgroundImage: NetworkImage(avatar))
-                                : CircleAvatar(radius: 34, child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?')),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(children: [
-                                Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                const SizedBox(width: 6),
-                                _badge('KUET', Icons.verified_rounded, Colors.green),
-                              ]),
-                              const SizedBox(height: 4),
-                              Text('@$username  •  $phone', style: TextStyle(color: cs.onSurfaceVariant)),
-                              const SizedBox(height: 6),
-                              Text('CSE • KUET • 2026', style: TextStyle(color: cs.onSurfaceVariant)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        FilledButton.tonal(onPressed: () async {
-                          final didSave = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(builder: (_) => EditProfilePage(profile: _profile)),
-                          );
-                          if (didSave == true) await _loadProfile();
-                        }, child: const Text('Edit profile')),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(onPressed: () {}, icon: const Icon(Icons.verified_user_outlined), label: const Text('Verify KUET')),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Card(
-                      margin: EdgeInsets.zero,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _Stat(label: 'Posts', value: '12'),
-                            _Divider(),
-                            _Stat(label: 'Returned', value: '4'),
-                            _Divider(),
-                            _Stat(label: 'Claims', value: '2'),
-                          ],
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.share_outlined, color: cs.onSurface),
+                    onPressed: () {},
+                  ),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: SingleChildScrollView(
+                    child: Container(
+                      // ensure the flexible space content sits below the toolbar/title
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        kToolbarHeight + 12,
+                        16,
+                        12,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [cs.surface, const Color(0xFFF3F4F6)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
                         ),
                       ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () async {
+                                  final didSave = await Navigator.of(
+                                    context,
+                                  ).push<bool>(
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) => EditProfilePage(
+                                            profile: _profile,
+                                          ),
+                                    ),
+                                  );
+                                  if (didSave == true) await _loadProfile();
+                                },
+                                child: Hero(
+                                  tag: 'me-avatar',
+                                  child:
+                                      avatar != null
+                                          ? CircleAvatar(
+                                            radius: 34,
+                                            backgroundImage: NetworkImage(
+                                              avatar,
+                                            ),
+                                          )
+                                          : CircleAvatar(
+                                            radius: 34,
+                                            child: Text(
+                                              name.isNotEmpty
+                                                  ? name[0].toUpperCase()
+                                                  : '?',
+                                            ),
+                                          ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        _badge(
+                                          'KUET',
+                                          Icons.verified_rounded,
+                                          Colors.green,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '@$username  •  $phone',
+                                      style: TextStyle(
+                                        color: cs.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'CSE • KUET • 2026',
+                                      style: TextStyle(
+                                        color: cs.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              FilledButton.tonal(
+                                onPressed: () async {
+                                  final didSave = await Navigator.of(
+                                    context,
+                                  ).push<bool>(
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) => EditProfilePage(
+                                            profile: _profile,
+                                          ),
+                                    ),
+                                  );
+                                  if (didSave == true) await _loadProfile();
+                                },
+                                child: const Text('Edit profile'),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                onPressed: () {},
+                                icon: const Icon(Icons.verified_user_outlined),
+                                label: const Text('Verify KUET'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              ),
-            ),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(56),
-              child: Material(
-                color: cs.primary,
-                elevation: 2,
-                child: SafeArea(
-                  top: false,
-                  child: SizedBox(
-                    height: 56,
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(56),
+                  child: Material(
+                    color: cs.primary,
+                    elevation: 2,
                     child: TabBar(
                       controller: _tabs,
                       isScrollable: true,
                       indicatorColor: cs.onPrimary,
                       labelColor: cs.onPrimary,
                       unselectedLabelColor: cs.onSecondary,
-                      tabs: const [
-                        Tab(text: 'Posts'),
-                        Tab(text: 'Claims'),
-                        Tab(text: 'Saved'),
+                      tabs: [
+                        Tab(text: 'Posts ($_postCount)'),
+                        Tab(text: 'Claims (4)'),
+                        Tab(text: 'Saved (2)'),
                       ],
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
         body: TabBarView(
           controller: _tabs,
-          children: const [
-            _PostsTab(),
-            _ClaimsTab(),
-            _SavedTab(),
-          ],
+          children: const [_PostsTab(), _ClaimsTab(), _SavedTab()],
         ),
       ),
     );
@@ -196,11 +269,13 @@ Widget _badge(String text, IconData icon, Color color) => Container(
     color: color.withOpacity(.12),
     borderRadius: BorderRadius.circular(20),
   ),
-  child: Row(children: [
-    Icon(icon, size: 14, color: color),
-    const SizedBox(width: 4),
-    Text(text, style: TextStyle(fontSize: 12, color: color)),
-  ]),
+  child: Row(
+    children: [
+      Icon(icon, size: 14, color: color),
+      const SizedBox(width: 4),
+      Text(text, style: TextStyle(fontSize: 12, color: color)),
+    ],
+  ),
 );
 
 class _Stat extends StatelessWidget {
@@ -211,7 +286,10 @@ class _Stat extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 2),
         Text(label, style: TextStyle(color: cs.onSurfaceVariant)),
       ],
@@ -223,57 +301,228 @@ class _Divider extends StatelessWidget {
   const _Divider();
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 28, color: Theme.of(context).dividerColor);
+    return Container(
+      width: 1,
+      height: 28,
+      color: Theme.of(context).dividerColor,
+    );
   }
 }
 
 /// ----- TABS (existing placeholders kept) -----
-
-class _PostsTab extends StatelessWidget {
+class _PostsTab extends StatefulWidget {
   const _PostsTab();
   @override
+  State<_PostsTab> createState() => _PostsTabState();
+}
+
+class _PostsTabState extends State<_PostsTab> {
+  final supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _userPosts = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserPosts();
+  }
+
+  Future<void> _loadUserPosts() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final posts = await supabase
+          .from('posts')
+          .select()
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _userPosts = List<Map<String, dynamic>>.from(posts as List);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading user posts: $e');
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_userPosts.isEmpty) {
+      return const Center(child: Text('No posts yet'));
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8),
-      itemCount: 8,
-      itemBuilder: (_, i) => _postCard(i),
+      itemCount: _userPosts.length,
+      itemBuilder: (_, i) => _postCard(_userPosts[i]),
     );
   }
 
-  Widget _postCard(int i) {
-    final isLost = i.isEven;
+  Widget _postCard(Map<String, dynamic> post) {
+    final isLost = post['status']?.toLowerCase() == 'lost';
     final chipColor = isLost ? Colors.red[400]! : Colors.green[400]!;
+
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          Stack(children: [
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Image.network('https://picsum.photos/seed/p$i/1000/600', fit: BoxFit.cover),
-            ),
-            Positioned(
-              left: 12, top: 12,
-              child: Chip(
-                backgroundColor: chipColor,
-                label: Text(isLost ? 'LOST' : 'FOUND',
-                    style: const TextStyle(color: Colors.white)),
+          Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child:
+                    post['image_url'] != null
+                        ? Image.network(
+                          post['image_url'],
+                          fit: BoxFit.cover,
+                          errorBuilder:
+                              (_, __, ___) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(child: Text('No image')),
+                              ),
+                        )
+                        : Container(
+                          color: Colors.grey[200],
+                          child: const Center(child: Text('No image')),
+                        ),
               ),
-            ),
-          ]),
+              Positioned(
+                left: 12,
+                top: 12,
+                child: Chip(
+                  backgroundColor: chipColor,
+                  label: Text(
+                    post['status']?.toUpperCase() ?? '',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
           ListTile(
-            title: Text(isLost ? 'Lost: Wallet #$i' : 'Found: Phone #$i'),
-            subtitle: const Text('Cafeteria • 2h ago • Electronics'),
-            trailing: IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () {},
-              tooltip: 'Edit post',
+            title: Text(post['title'] ?? 'Untitled'),
+            subtitle: Text(
+              [
+                post['location'] ?? '',
+                _getTimeAgo(DateTime.parse(post['created_at'])),
+                post['category'] ?? '',
+              ].where((s) => s.isNotEmpty).join(' • '),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () {
+                    // Add edit functionality
+                  },
+                  tooltip: 'Edit post',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete post?'),
+                        content: const Text('This action cannot be undone.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirmed == true && mounted) {
+                      await _deletePost(post['id']);
+                    }
+                  },
+                )
+
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()}y';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()}mo';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}d';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m';
+    } else {
+      return 'now';
+    }
+  }
+  Future<void> _deletePost(int postId) async {
+    try {
+      // Show confirmation dialog
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete post?'),
+          content: const Text('This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      // Delete from Supabase
+      await supabase
+          .from('posts')
+          .delete()
+          .match({'id': postId});
+
+      if (mounted) {
+        setState(() {
+          // Remove post from local list
+          _userPosts.removeWhere((post) => post['id'] == postId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post deleted successfully')),
+        );
+      }
+    } catch (error) {
+      debugPrint('Error deleting post: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting post: $error')),
+        );
+      }
+    }
   }
 }
 
@@ -285,12 +534,15 @@ class _ClaimsTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: 3,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.assignment_turned_in)),
-        title: Text('Claim: Black Wallet #$i'),
-        subtitle: const Text('Status: Pending • Owner reply expected'),
-        trailing: TextButton(onPressed: () {}, child: const Text('View')),
-      ),
+      itemBuilder:
+          (_, i) => ListTile(
+            leading: const CircleAvatar(
+              child: Icon(Icons.assignment_turned_in),
+            ),
+            title: Text('Claim: Black Wallet #$i'),
+            subtitle: const Text('Status: Pending • Owner reply expected'),
+            trailing: TextButton(onPressed: () {}, child: const Text('View')),
+          ),
     );
   }
 }
@@ -302,18 +554,30 @@ class _SavedTab extends StatelessWidget {
     return GridView.builder(
       padding: const EdgeInsets.all(12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, childAspectRatio: 3/4, crossAxisSpacing: 10, mainAxisSpacing: 10),
-      itemCount: 6,
-      itemBuilder: (_, i) => ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network('https://picsum.photos/seed/s$i/600/800', fit: BoxFit.cover),
-            const Positioned(right: 8, top: 8, child: Icon(Icons.bookmark, color: Colors.white)),
-          ],
-        ),
+        crossAxisCount: 2,
+        childAspectRatio: 3 / 4,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
+      itemCount: 6,
+      itemBuilder:
+          (_, i) => ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  'https://picsum.photos/seed/s$i/600/800',
+                  fit: BoxFit.cover,
+                ),
+                const Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Icon(Icons.bookmark, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
     );
   }
 }
@@ -330,9 +594,15 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   final supabase = Supabase.instance.client;
-  late final TextEditingController _nameController = TextEditingController(text: widget.profile?['name'] ?? '');
-  late final TextEditingController _usernameController = TextEditingController(text: widget.profile?['username'] ?? '');
-  late final TextEditingController _phoneController = TextEditingController(text: widget.profile?['phone'] ?? '');
+  late final TextEditingController _nameController = TextEditingController(
+    text: widget.profile?['name'] ?? '',
+  );
+  late final TextEditingController _usernameController = TextEditingController(
+    text: widget.profile?['username'] ?? '',
+  );
+  late final TextEditingController _phoneController = TextEditingController(
+    text: widget.profile?['phone'] ?? '',
+  );
   XFile? _picked;
   bool _saving = false;
   bool _avatarRemoved = false;
@@ -343,7 +613,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final user = supabase.auth.currentUser;
       if (user == null) return null;
       final path = 'avatars/${user.id}.jpg';
-      await supabase.storage.from('avatars').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
+      await supabase.storage
+          .from('avatars')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
       return supabase.storage.from('avatars').getPublicUrl(path);
     } catch (e, st) {
       debugPrint('upload error: $e\n$st');
@@ -363,7 +639,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
           avatarUrlFinal = uploaded;
         } catch (e) {
           debugPrint('upload exception: $e');
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to upload avatar: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to upload avatar: $e')),
+          );
           setState(() => _saving = false);
           return;
         }
@@ -388,15 +666,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
       });
 
       // check for error in response (supabase-dart usually throws on error)
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile saved')));
       Navigator.of(context).pop(true);
     } catch (e, st) {
       debugPrint('profile save error: $e\n$st');
       final msg = e.toString();
       if (msg.contains('column') && msg.contains('avatar_url')) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Database missing column `avatar_url`. Add this column to `profiles` table.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Database missing column `avatar_url`. Add this column to `profiles` table.',
+            ),
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
       }
     } finally {
       setState(() => _saving = false);
@@ -405,12 +693,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-  final avatarUrl = widget.profile?['avatar_url'] as String?;
+    final avatarUrl = widget.profile?['avatar_url'] as String?;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit profile'),
         actions: [
-          TextButton(onPressed: _saving ? null : _saveProfile, child: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save', style: TextStyle(color: Colors.white)))
+          TextButton(
+            onPressed: _saving ? null : _saveProfile,
+            child:
+                _saving
+                    ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -419,24 +717,41 @@ class _EditProfilePageState extends State<EditProfilePage> {
           children: [
             GestureDetector(
               onTap: () async {
-                final img = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1200);
+                final img = await ImagePicker().pickImage(
+                  source: ImageSource.gallery,
+                  maxWidth: 1200,
+                );
                 if (img != null) setState(() => _picked = img);
               },
               child: CircleAvatar(
                 radius: 56,
                 backgroundColor: Colors.grey.shade200,
-        backgroundImage: _avatarRemoved
-          ? null
-          : (_picked == null
-            ? (avatarUrl != null ? NetworkImage(avatarUrl) as ImageProvider : null)
-            : FileImage(File(_picked!.path)) as ImageProvider),
-        child: !_avatarRemoved && _picked == null && avatarUrl == null ? Text((_nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : '?'), style: const TextStyle(fontSize: 36)) : null,
+                backgroundImage:
+                    _avatarRemoved
+                        ? null
+                        : (_picked == null
+                            ? (avatarUrl != null
+                                ? NetworkImage(avatarUrl) as ImageProvider
+                                : null)
+                            : FileImage(File(_picked!.path)) as ImageProvider),
+                child:
+                    !_avatarRemoved && _picked == null && avatarUrl == null
+                        ? Text(
+                          (_nameController.text.isNotEmpty
+                              ? _nameController.text[0].toUpperCase()
+                              : '?'),
+                          style: const TextStyle(fontSize: 36),
+                        )
+                        : null,
               ),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
               onPressed: () async {
-                final img = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1200);
+                final img = await ImagePicker().pickImage(
+                  source: ImageSource.gallery,
+                  maxWidth: 1200,
+                );
                 if (img != null) setState(() => _picked = img);
               },
               icon: const Icon(Icons.edit, size: 18),
@@ -447,32 +762,51 @@ class _EditProfilePageState extends State<EditProfilePage> {
               onPressed: () async {
                 final confirmed = await showDialog<bool>(
                   context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('Remove profile picture'),
-                    content: const Text('Are you sure you want to remove your profile picture?'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-                      TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Remove')),
-                    ],
-                  ),
+                  builder:
+                      (_) => AlertDialog(
+                        title: const Text('Remove profile picture'),
+                        content: const Text(
+                          'Are you sure you want to remove your profile picture?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('Remove'),
+                          ),
+                        ],
+                      ),
                 );
                 if (confirmed != true) return;
                 // perform delete: delete object from storage and clear avatar_url
-                  try {
+                try {
                   final user = supabase.auth.currentUser;
                   if (user == null) throw Exception('Not signed in');
                   final path = 'avatars/${user.id}.jpg';
                   await supabase.storage.from('avatars').remove([path]);
                   // Try to update existing profile row. If it doesn't exist, upsert with required fields.
-          final updated = await supabase.from('profiles')
-            .update({'avatar_url': null, 'updated_at': DateTime.now().toIso8601String()})
-            .eq('id', user.id)
-            .select();
-          // If update returned no rows, perform an upsert providing required NOT NULL fields.
-          final updatedList = updated as List<dynamic>;
-          if (updatedList.isEmpty) {
-                    final defaultName = widget.profile?['name'] ?? user.email?.split('@').first ?? 'User';
-                    final defaultUsername = widget.profile?['username'] ?? defaultName.toLowerCase().replaceAll(' ', '_');
+                  final updated =
+                      await supabase
+                          .from('profiles')
+                          .update({
+                            'avatar_url': null,
+                            'updated_at': DateTime.now().toIso8601String(),
+                          })
+                          .eq('id', user.id)
+                          .select();
+                  // If update returned no rows, perform an upsert providing required NOT NULL fields.
+                  final updatedList = updated as List<dynamic>;
+                  if (updatedList.isEmpty) {
+                    final defaultName =
+                        widget.profile?['name'] ??
+                        user.email?.split('@').first ??
+                        'User';
+                    final defaultUsername =
+                        widget.profile?['username'] ??
+                        defaultName.toLowerCase().replaceAll(' ', '_');
                     await supabase.from('profiles').upsert({
                       'id': user.id,
                       'name': defaultName,
@@ -486,27 +820,50 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     _picked = null;
                     _avatarRemoved = true;
                   });
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture removed')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Profile picture removed')),
+                  );
                 } catch (e) {
                   debugPrint('remove avatar error: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to remove avatar: $e')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to remove avatar: $e')),
+                  );
                 }
               },
               icon: const Icon(Icons.delete_outline, size: 18),
               label: const Text('Remove profile picture'),
             ),
             const SizedBox(height: 16),
-            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Full name')),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Full name'),
+            ),
             const SizedBox(height: 12),
-            TextField(controller: _usernameController, decoration: const InputDecoration(labelText: 'Username')),
+            TextField(
+              controller: _usernameController,
+              decoration: const InputDecoration(labelText: 'Username'),
+            ),
             const SizedBox(height: 12),
-            TextField(controller: _phoneController, decoration: const InputDecoration(labelText: 'Phone')),
+            TextField(
+              controller: _phoneController,
+              decoration: const InputDecoration(labelText: 'Phone'),
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _saving ? null : _saveProfile,
-                child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Save'),
+                child:
+                    _saving
+                        ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Text('Save'),
               ),
             ),
           ],
