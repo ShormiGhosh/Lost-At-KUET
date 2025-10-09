@@ -550,6 +550,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                       ),
                     ),
                   ),
+                  posterId: post.userId,
                 ),
               );
             },
