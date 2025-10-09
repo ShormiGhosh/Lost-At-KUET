@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'models/chat.dart';
+import 'package:LostAtKuet/models/chat.dart';
 import 'chat_detail_screen.dart';
 import 'services/chat_service.dart';
 
