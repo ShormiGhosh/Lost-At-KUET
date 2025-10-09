@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'models/post.dart';
+
 /// Functional profile page: reads/writes `profiles` table and uploads avatar to
 /// Supabase Storage (bucket: `avatars`). See the notes at the end for required
 /// setup steps (create bucket, set public or configure URL generation).
@@ -31,6 +33,7 @@ class _ProfilePageState extends State<ProfilePage>
     _loadPostCount();
     _loadClaimCount();
   }
+
   Future<void> _loadPostCount() async {
     try {
       final user = supabase.auth.currentUser;
@@ -348,6 +351,7 @@ class _PostsTab extends StatefulWidget {
   @override
   State<_PostsTab> createState() => _PostsTabState();
 }
+
 class _PostsTabState extends State<_PostsTab> {
   final supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _userPosts = [];
@@ -356,11 +360,19 @@ class _PostsTabState extends State<_PostsTab> {
   @override
   void initState() {
     super.initState();
-    loadUserPosts();
+    _loadUserPosts();
   }
-
-  // Remove underscore to make it accessible from outside
-  Future<void> loadUserPosts() async {
+  Future<void> _loadPosts() async {
+    setState(() => _loading = true);
+    try {
+      await _loadUserPosts();
+    } catch (e) {
+      debugPrint('Error loading posts: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+  Future<void> _loadUserPosts() async {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) return;
@@ -381,6 +393,26 @@ class _PostsTabState extends State<_PostsTab> {
     }
   }
 
+  void _showPostDetails(Post post) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (_, a, __) => FadeTransition(
+          opacity: a,
+          child: _PostDetailsPage(
+            heroTag: 'profile-post-${post.id}',
+            imageUrl: post.imageUrl,
+            title: post.title,
+            description: post.description,
+            status: post.status,
+            location: post.location,
+            category: post.category,
+            createdAt: post.createdAt,
+          ),
+        ),
+      ),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -398,53 +430,34 @@ class _PostsTabState extends State<_PostsTab> {
     );
   }
 
-  Widget _postCard(Map<String, dynamic> post) {
-    final isLost = post['status']?.toLowerCase() == 'lost';
+  Widget _postCard(Map<String, dynamic> postMap) {
+    final post = Post.fromJson(postMap);
+    final isLost = post.status.toLowerCase() == 'lost';
     final chipColor = isLost ? Colors.red[400]! : Colors.green[400]!;
 
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          // Navigate to the detail page
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              transitionDuration: const Duration(milliseconds: 350),
-              pageBuilder: (_, a, __) => FadeTransition(
-                opacity: a,
-                child: _DetailsPage(
-                  heroTag: 'profile-post-${post['id']}',
-                  imageUrl: post['image_url'] ?? 'https://picsum.photos/seed/${post['id']}/1000/600',
-                  title: post['title'] ?? 'Untitled',
-                  description: post['description'] ?? 'No description',
-                  status: post['status'] ?? 'Unknown',
-                  location: post['location'] ?? 'Unknown location',
-                  category: post['category'] ?? 'Uncategorized',
-                  createdAt: DateTime.parse(post['created_at']),
-                ),
-              ),
-            ),
-          );
-        },
+        onTap: () => _showPostDetails(post),
         child: Column(
           children: [
             Stack(
               children: [
                 AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: post['image_url'] != null
+                  child: post.imageUrl != null
                       ? Image.network(
-                    post['image_url'],
+                    post.imageUrl!,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       color: Colors.grey[200],
-                      child: const Center(child: Text('No image')),
+                      child: const Center(child: Text('No image available')),
                     ),
                   )
                       : Container(
                     color: Colors.grey[200],
-                    child: const Center(child: Text('No image')),
+                    child: const Center(child: Text('No image available')),
                   ),
                 ),
                 Positioned(
@@ -453,7 +466,7 @@ class _PostsTabState extends State<_PostsTab> {
                   child: Chip(
                     backgroundColor: chipColor,
                     label: Text(
-                      post['status']?.toUpperCase() ?? '',
+                      post.status.toUpperCase(),
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
@@ -461,26 +474,34 @@ class _PostsTabState extends State<_PostsTab> {
               ],
             ),
             ListTile(
-              title: Text(post['title'] ?? 'Untitled'),
+              title: Text(post.title),
               subtitle: Text(
                 [
-                  post['location'] ?? '',
-                  _getTimeAgo(DateTime.parse(post['created_at'])),
-                  post['category'] ?? '',
-                ].where((s) => s.isNotEmpty).join(' • '),
+                  post.location,
+                  _getTimeAgo(post.createdAt),
+                  post.category,
+                ].join(' • '),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.edit_outlined),
-                    onPressed: () {
-                      // Add edit functionality
+                    onPressed: () async {
+                      final updated = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EditPostScreen(post: post),
+                        ),
+                      );
+                      if (updated == true) {
+                        await _loadPosts();
+                      }
                     },
                     tooltip: 'Edit post',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete),
+                    icon: const Icon(Icons.delete_outline),
                     onPressed: () async {
                       final confirmed = await showDialog<bool>(
                         context: context,
@@ -494,6 +515,9 @@ class _PostsTabState extends State<_PostsTab> {
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(context, true),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
                               child: const Text('Delete'),
                             ),
                           ],
@@ -501,10 +525,11 @@ class _PostsTabState extends State<_PostsTab> {
                       );
 
                       if (confirmed == true && mounted) {
-                        await _deletePost(post['id']);
+                        await _deletePost(post.id);
                       }
                     },
-                  )
+                    tooltip: 'Delete post',
+                  ),
                 ],
               ),
             ),
@@ -513,6 +538,7 @@ class _PostsTabState extends State<_PostsTab> {
       ),
     );
   }
+
   String _getTimeAgo(DateTime dateTime) {
     final difference = DateTime.now().difference(dateTime);
     if (difference.inDays > 365) {
@@ -558,20 +584,31 @@ class _PostsTabState extends State<_PostsTab> {
           .delete()
           .match({'id': postId});
 
+      // Remove post from local list and update UI
       if (mounted) {
         setState(() {
           // Remove post from local list
           _userPosts.removeWhere((post) => post['id'] == postId);
         });
+
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post deleted successfully')),
+          const SnackBar(
+            content: Text('Post deleted successfully'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (error) {
       debugPrint('Error deleting post: $error');
       if (mounted) {
+        // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting post: $error')),
+          SnackBar(
+            content: Text('Error deleting post: $error'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -621,7 +658,7 @@ class _ClaimsTabState extends State<_ClaimsTab> {
   void _refreshPostsTab() {
     // Find the Posts tab state and refresh it
     final postsTabState = context.findAncestorStateOfType<_PostsTabState>();
-    postsTabState?.loadUserPosts();
+    postsTabState?._loadUserPosts();
   }
 
   @override
@@ -697,7 +734,7 @@ class _ClaimsTabState extends State<_ClaimsTab> {
 
         // Trigger refresh of Posts tab to show updated status using the GlobalKey
         if (widget.postsTabKey?.currentState != null) {
-          widget.postsTabKey!.currentState!.loadUserPosts();
+          widget.postsTabKey!.currentState!._loadUserPosts();
         }
       }
     }
@@ -1444,37 +1481,480 @@ class _DetailField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ... (implementation of build method for _DetailField)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 4),
         Row(
           children: [
-            Icon(icon, size: 18, color: Colors.grey),
+            Icon(icon, size: 16, color: Colors.grey[600]),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
+            Expanded(
+              child: Text(
+                value,
+                style: TextStyle(color: Colors.grey[600]),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-          ),
         ),
       ],
     );
   }
 }
+class _PostDetailsPage extends StatelessWidget {
+  final String heroTag;
+  final String? imageUrl;
+  final String title;
+  final String description;
+  final String status;
+  final String location;
+  final String category;
+  final DateTime createdAt;
 
+  const _PostDetailsPage({
+    required this.heroTag,
+    this.imageUrl,
+    required this.title,
+    required this.description,
+    required this.status,
+    required this.location,
+    required this.category,
+    required this.createdAt,
+  });
 
+  String _getTimeAgo(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()} years ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()} months ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    }  else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Post Details'),
+        backgroundColor: const Color(0xFF292929),
+        foregroundColor: Colors.white,
+      ),
+      body: ListView(
+        children: [
+          Hero(
+            tag: heroTag,
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: imageUrl != null
+                  ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey[200],
+                  child: const Center(child: Text('No image available')),
+                ),
+              )
+                  : Container(
+                color: Colors.grey[200],
+                child: const Center(child: Text('No image available')),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Chip(
+              label: Text(
+                status.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              backgroundColor: status.toLowerCase() == 'lost'
+                  ? Colors.red[400]
+                  : Colors.green[400],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DetailField(
+                  icon: Icons.title,
+                  label: 'Title',
+                  value: title,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.description,
+                  label: 'Description',
+                  value: description,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.category,
+                  label: 'Category',
+                  value: category,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.location_on,
+                  label: 'Location',
+                  value: location,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.access_time,
+                  label: 'Posted',
+                  value: _getTimeAgo(createdAt),
+                ),
+              ],
+            ),
+          ),
 
+        ],
+      ),
+    );
+  }
+}
+class EditPostScreen extends StatefulWidget {
+  final Post post;
+  const EditPostScreen({super.key, required this.post});
 
+  @override
+  State<EditPostScreen> createState() => _EditPostScreenState();
+}
 
+class _EditPostScreenState extends State<EditPostScreen> {
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _locationController = TextEditingController();
+  String _selectedCategory = 'Electronics';
+  String _selectedStatus = 'Lost';
+  bool _loading = false;
+  String? _imagePath;
+  final _supabase = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill the form with existing post data
+    _titleController.text = widget.post.title;
+    _descriptionController.text = widget.post.description;
+    _locationController.text = widget.post.location;
+    _selectedCategory = widget.post.category;
+    _selectedStatus = widget.post.status;
+    _imagePath = widget.post.imageUrl;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updatePost() async {
+    if (_loading) return;
+
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    final location = _locationController.text.trim();
+
+    setState(() => _loading = true);
+
+    try {
+      await _supabase
+          .from('posts')
+          .update({
+        'title': title,
+        'description': description,
+        'location': location,
+        'category': _selectedCategory,
+        'status': _selectedStatus,
+        'image_url': _imagePath,
+      })
+          .eq('id', widget.post.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post updated successfully')),
+        );
+        Navigator.of(context).pop(true); // Return true to indicate success
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating post: $e')),
+        );
+      }
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+
+    if (image == null) return;
+
+    try {
+      setState(() => _loading = true);
+
+      // Delete old image if exists
+      if (_imagePath != null) {
+        final oldFileName = _imagePath!.split('/').last;
+        try {
+          await _supabase.storage.from('posts').remove([oldFileName]);
+        } catch (e) {
+          debugPrint('Error deleting old image: $e');
+        }
+      }
+
+      // Upload new image
+      final bytes = await image.readAsBytes();
+      final fileExt = image.path.split('.').last;
+      final fileName = '${DateTime.now().toIso8601String()}_${widget.post.id}.$fileExt';
+
+      await _supabase.storage.from('posts').uploadBinary(
+        fileName,
+        bytes,
+        fileOptions: const FileOptions(
+          contentType: 'image/jpeg',
+          upsert: true,
+        ),
+      );
+
+      final imageUrl = _supabase.storage.from('posts').getPublicUrl(fileName);
+
+      setState(() => _imagePath = imageUrl);
+
+      // Update post with new image URL
+      await _supabase
+          .from('posts')
+          .update({'image_url': imageUrl})
+          .eq('id', widget.post.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image updated successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading image: $e')),
+        );
+      }
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _removeImage() async {
+    try {
+      setState(() => _loading = true);
+
+      // Delete image from storage
+      if (_imagePath != null) {
+        final fileName = _imagePath!.split('/').last;
+        await _supabase.storage.from('posts').remove([fileName]);
+      }
+
+      // Update post to remove image URL
+      await _supabase
+          .from('posts')
+          .update({'image_url': null})
+          .eq('id', widget.post.id);
+
+      setState(() => _imagePath = null);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image removed successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error removing image: $e')),
+        );
+      }
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit Post'),
+        actions: [
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(8.0),
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.check),
+              onPressed: _updatePost,
+            ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (_imagePath != null)
+            Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(
+                    _imagePath!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.grey[200],
+                      child: const Center(child: Text('Error loading image')),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: _pickImage,
+                        tooltip: 'Change image',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Remove image?'),
+                              content: const Text('This action cannot be undone.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                  ),
+                                  child: const Text('Remove'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            await _removeImage();
+                          }
+                        },
+                        tooltip: 'Remove image',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _pickImage,
+              icon: const Icon(Icons.add_photo_alternate),
+              label: const Text('Add Photo'),
+            ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _titleController,
+            decoration: const InputDecoration(
+              labelText: 'Title',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _descriptionController,
+            decoration: const InputDecoration(
+              labelText: 'Description',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: _selectedStatus,
+            decoration: const InputDecoration(
+              labelText: 'Status',
+              border: OutlineInputBorder(),
+            ),
+            items: ['Lost', 'Found']
+                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                .toList(),
+            onChanged: (value) {
+              if (value != null) setState(() => _selectedStatus = value);
+            },
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: _selectedCategory,
+            decoration: const InputDecoration(
+              labelText: 'Category',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              'Wallet',
+              'Keys',
+              'Electronics',
+              'Clothing',
+              'Book',
+              'Stationary item',
+              'Others',
+            ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+            onChanged: (value) {
+              if (value != null) setState(() => _selectedCategory = value);
+            },
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _locationController,
+            decoration: const InputDecoration(
+              labelText: 'Location',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

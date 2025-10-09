@@ -12,6 +12,8 @@ import 'notifications_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'chat_screen.dart';
+import 'services/chat_service.dart';
+import 'notifications_page.dart';
 
 const _amber = Color(0xFFFFC815); // warm amber
 const _charcoal = Color(0xFF292929); // dark header bg
@@ -224,7 +226,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // replace with your asset
                           // put assets/lostatkuet_icon.png in pubspec
                           Image.asset(
                             'assets/lostatkuet_icon.png',
@@ -388,7 +389,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                     child: IconButton(
                       onPressed: () {
                         Navigator.of(context).push(MaterialPageRoute(builder: (
-                            _) => const NotificationsPage()));
+                            _) => NotificationsPage()));
                       },
                       icon: const Icon(
                           Icons.notifications_none, color: Colors.white),
@@ -530,30 +531,26 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   location: post.location,
                   createdAt: post.createdAt,
                   category: post.category,
-                  onTap:
-                      () =>
-                      Navigator.of(context).push(
-                        PageRouteBuilder(
-                          transitionDuration: const Duration(milliseconds: 350),
-                          pageBuilder:
-                              (_, a, __) =>
-                              FadeTransition(
-                                opacity: a,
-                                child: _DetailsPage(
-                                  heroTag: 'post-$i',
-                                  imageUrl:
-                                  post.imageUrl ??
-                                      'https://picsum.photos/seed/$i/1000/600',
-                                  title: post.title,
-                                  description: post.description,
-                                  status: post.status,
-                                  location: post.location,
-                                  category: post.category,
-                                  createdAt: post.createdAt,
-                                ),
-                              ),
+                  onTap: () => Navigator.of(context).push(
+                    PageRouteBuilder(
+                      transitionDuration: const Duration(milliseconds: 350),
+                      pageBuilder: (_, a, __) => FadeTransition(
+                        opacity: a,
+                        child: _DetailsPage(
+                          heroTag: 'post-$i',
+                          imageUrl: post.imageUrl ?? '',
+                          title: post.title,
+                          description: post.description,
+                          status: post.status,
+                          location: post.location,
+                          category: post.category,
+                          createdAt: post.createdAt,
+                          posterId: post.userId,
                         ),
                       ),
+                    ),
+                  ),
+                  posterId: post.userId,
                 ),
               );
             },
@@ -643,11 +640,9 @@ class _MiniCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap:
-              () => Navigator.of(context).push(
+          onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder:
-                  (_) => _DetailsPage(
+              builder: (_) => _DetailsPage(
                 heroTag: 'mini-$i',
                 imageUrl: img,
                 title: 'Black Wallet',
@@ -656,6 +651,7 @@ class _MiniCard extends StatelessWidget {
                 location: 'Cafeteria',
                 category: 'Accessories',
                 createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+                posterId: 'unknown',
               ),
             ),
           ),
@@ -703,6 +699,7 @@ class _PostCard extends StatelessWidget {
   final String? imageUrl;
   final String category;
   final VoidCallback onTap;
+  final String posterId;
 
   const _PostCard({
     required this.index,
@@ -715,6 +712,7 @@ class _PostCard extends StatelessWidget {
     this.imageUrl,
     required this.category,
     required this.onTap,
+    required this.posterId,
   });
 
   String _getTimeAgo(DateTime dateTime) {
@@ -745,29 +743,49 @@ class _PostCard extends StatelessWidget {
         onTap: onTap,
         child: Column(
           children: [
-            Hero(
-              tag: 'post-$index',
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: imageUrl != null
-                    ? Image.network(
-                  imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Text('No image available'),
-                    ),
-                  ),
-                )
-                    : Container(
+          Hero(
+          tag: 'post-$index',
+            flightShuttleBuilder: (_, animation, __, ___, ____) {
+              return AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) => Container(
+                  decoration: const BoxDecoration(color: Colors.white),
+                  child: child,
+                ),
+              );
+            }, child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: (imageUrl != null && imageUrl!.isNotEmpty)
+                  ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[200],
                   child: const Center(
-                    child: Text('No image available'),
+                    child: Text(
+                      'No image available',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+                  : Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Text(
+                    'No image available',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
-            ),
+            )
+          ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -808,6 +826,37 @@ class _PostCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      // Chat button: open/create direct chat with poster
+                      IconButton(
+                        onPressed: () async {
+                          final supabase = Supabase.instance.client;
+                          final currentUser = supabase.auth.currentUser;
+                          if (currentUser == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sign in to message')));
+                            return;
+                          }
+                          final chatService = ChatService(supabase);
+                          try {
+                            final chat = await chatService.createOrGetDirectChat(currentUser.id, posterId);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)));
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error opening chat: $e')));
+                          }
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        tooltip: 'Message poster',
+                      ),
+                      // Inbox shortcut: open chat list
+                      IconButton(
+                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage())),
+                        icon: const Icon(Icons.mail_outline),
+                        tooltip: 'Open inbox',
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -827,6 +876,7 @@ class _DetailsPage extends StatelessWidget {
   final String location;
   final String category;
   final DateTime createdAt;
+  final String posterId;
 
   const _DetailsPage({
     required this.heroTag,
@@ -837,6 +887,7 @@ class _DetailsPage extends StatelessWidget {
     required this.location,
     required this.category,
     required this.createdAt,
+    required this.posterId,
   });
 
 
@@ -858,136 +909,142 @@ class _DetailsPage extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Details'),
-        backgroundColor: const Color(0xFF292929),
-        foregroundColor: Colors.white,
-      ),
-      body: ListView(
-        children: [
-          // Hero image
-          Hero(
-            tag: heroTag,
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: imageUrl.isNotEmpty
-                  ? Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Text('No image available'),
-                    ),
-                  );
-                },
-              )
-                  : Container(
+@override
+Widget build(BuildContext context) {
+  // Rest of the build method remains the same
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Details'),
+      backgroundColor: const Color(0xFF292929),
+      foregroundColor: Colors.white,
+    ),
+    body: ListView(
+      children: [
+        Hero(
+          tag: heroTag,
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: (imageUrl.isNotEmpty)
+                ? Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
                 color: Colors.grey[200],
                 child: const Center(
-                  child: Text('No image available'),
-                ),
-              ),
-            ),
-          ),
-
-          // Status chip
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Chip(
-              label: Text(
-                status.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              backgroundColor: status.toLowerCase() == 'lost'
-                  ? Colors.red[400]
-                  : Colors.green[400],
-            ),
-          ),
-
-          // Details form
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _DetailField(
-                  icon: Icons.title,
-                  label: 'Title',
-                  value: title,
-                ),
-                const SizedBox(height: 16),
-                _DetailField(
-                  icon: Icons.description,
-                  label: 'Description',
-                  value: description,
-                ),
-                const SizedBox(height: 16),
-                _DetailField(
-                  icon: Icons.category,
-                  label: 'Category',
-                  value: category,
-                ),
-                const SizedBox(height: 16),
-                _DetailField(
-                  icon: Icons.location_on,
-                  label: 'Location',
-                  value: location,
-                ),
-                const SizedBox(height: 16),
-                _DetailField(
-                  icon: Icons.access_time,
-                  label: 'Posted',
-                  value: _getTimeAgo(createdAt),
-                ),
-              ],
-            ),
-          ),
-
-          // Contact button
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                final chat = Chat(
-                  id: 'chat_${title.hashCode}',
-                  user1Id: 'current_user_id',
-                  user2Id: 'poster_id',
-                  otherUser: Profile(
-                    id: 'poster_id',
-                    username: 'Poster Name',
+                  child: Text(
+                    'No image available',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 16,
+                    ),
                   ),
-                  createdAt: DateTime.now(),
-                );
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatDetailPage(chat: chat),
+                ),
+              ),
+            )
+                : Container(
+              color: Colors.grey[200],
+              child: const Center(
+                child: Text(
+                  'No image available',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 16,
                   ),
-                );
-              },
-              icon: const Icon(Icons.chat_bubble_outline),
-              label: const Text('Contact Poster'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF292929),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                minimumSize: const Size(double.infinity, 50),
+                ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        // Status chip
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Chip(
+            label: Text(
+              status.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            backgroundColor: status.toLowerCase() == 'lost'
+                ? Colors.red[400]
+                : Colors.green[400],
+          ),
+        ),
+
+        // Details form
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DetailField(
+                icon: Icons.title,
+                label: 'Title',
+                value: title,
+              ),
+              const SizedBox(height: 16),
+              _DetailField(
+                icon: Icons.description,
+                label: 'Description',
+                value: description,
+              ),
+              const SizedBox(height: 16),
+              _DetailField(
+                icon: Icons.category,
+                label: 'Category',
+                value: category,
+              ),
+              const SizedBox(height: 16),
+              _DetailField(
+                icon: Icons.location_on,
+                label: 'Location',
+                value: location,
+              ),
+              const SizedBox(height: 16),
+              _DetailField(
+                icon: Icons.access_time,
+                label: 'Posted',
+                value: _getTimeAgo(createdAt),
+              ),
+            ],
+          ),
+        ),
+
+        // Contact button
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              final supabase = Supabase.instance.client;
+              final currentUser = supabase.auth.currentUser;
+              if (currentUser == null) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You must be signed in to contact the poster')));
+                return;
+              }
+
+              final chatService = ChatService(supabase);
+              try {
+                final chat = await chatService.createOrGetDirectChat(currentUser.id, posterId);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)));
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error opening chat: $e')));
+              }
+            },
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Contact Poster'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF292929),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              minimumSize: const Size(double.infinity, 50),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
 
 class _DetailField extends StatelessWidget {
@@ -1208,11 +1265,13 @@ class _SearchPageState extends State<SearchPage> {
                     location: post.location,
                     category: post.category,
                     createdAt: post.createdAt,
+                    posterId: post.userId,
                   ),
                 ),
               ),
             );
           },
+          posterId: post.userId,
         );
       },
     );

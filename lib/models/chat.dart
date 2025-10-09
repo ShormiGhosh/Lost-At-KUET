@@ -8,6 +8,7 @@ class Chat {
   final DateTime? lastMessageAt;
   final Profile otherUser;
   final String? otherUserAvatar; // Add this field
+  final int unreadCount;
   final DateTime createdAt;
 
   Chat({
@@ -18,6 +19,7 @@ class Chat {
     this.lastMessageAt,
     required this.otherUser,
     this.otherUserAvatar, // Add this parameter
+    this.unreadCount = 0,
     required this.createdAt,
   });
 
@@ -38,6 +40,21 @@ class Chat {
       otherUser: Profile.fromJson(otherUserData),
       otherUserAvatar: otherUserData['avatar_url'],
       createdAt: DateTime.parse(json['created_at']),
+      unreadCount: json['unread_count'] ?? 0,
+    );
+  }
+
+  Chat copyWith({int? unreadCount}) {
+    return Chat(
+      id: id,
+      user1Id: user1Id,
+      user2Id: user2Id,
+      lastMessage: lastMessage,
+      lastMessageAt: lastMessageAt,
+      otherUser: otherUser,
+      otherUserAvatar: otherUserAvatar,
+      unreadCount: unreadCount ?? this.unreadCount,
+      createdAt: createdAt,
     );
   }
 }
