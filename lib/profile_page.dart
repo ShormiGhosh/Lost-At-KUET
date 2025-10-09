@@ -21,25 +21,49 @@ class _ProfilePageState extends State<ProfilePage>
   bool _loading = true;
   late final TabController _tabs = TabController(length: 3, vsync: this);
   int _postCount = 0;
+  int _claimCount = 0;
+  final GlobalKey<_PostsTabState> _postsTabKey = GlobalKey<_PostsTabState>();
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
     _loadPostCount();
+    _loadClaimCount();
   }
-
   Future<void> _loadPostCount() async {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) return;
 
-      final countData =
-          await supabase.from('posts').select().eq('user_id', user.id).count();
+      final countData = await supabase
+          .from('posts')
+          .select()
+          .eq('user_id', user.id)
+          .count();
 
       setState(() => _postCount = countData.count);
     } catch (e) {
       debugPrint('Error loading post count: $e');
+    }
+  }
+
+
+  Future<void> _loadClaimCount() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final countData = await supabase
+          .from('posts')
+          .select()
+          .eq('user_id', user.id)
+          .eq('status', 'Lost')
+          .count();
+
+      setState(() => _claimCount = countData.count);
+    } catch (e) {
+      debugPrint('Error loading claim count: $e');
     }
   }
 
@@ -66,7 +90,11 @@ class _ProfilePageState extends State<ProfilePage>
       _loading = false;
     });
   }
-
+  void refreshAllTabs() {
+    _loadPostCount();
+    _loadClaimCount();
+    // You can also trigger Posts tab refresh here if needed
+  }
   // The upload helper was intentionally removed; full-screen editor uses
   // `_uploadAvatarLocal` inside `EditProfilePage` instead.
 
@@ -246,7 +274,7 @@ class _ProfilePageState extends State<ProfilePage>
                       unselectedLabelColor: cs.onSecondary,
                       tabs: [
                         Tab(text: 'Posts ($_postCount)'),
-                        Tab(text: 'Claims (4)'),
+                        Tab(text: 'Claims ($_claimCount)'), // Changed from 'Claims (4)'
                         Tab(text: 'Saved (2)'),
                       ],
                     ),
@@ -256,7 +284,11 @@ class _ProfilePageState extends State<ProfilePage>
             ],
         body: TabBarView(
           controller: _tabs,
-          children: const [_PostsTab(), _ClaimsTab(), _SavedTab()],
+          children: [
+            _PostsTab(key: _postsTabKey, onPostUpdated: _loadPostCount), // Add key here
+            _ClaimsTab(postsTabKey: _postsTabKey), // Pass the key to Claims tab
+            _SavedTab(),
+          ],
         ),
       ),
     );
@@ -311,11 +343,11 @@ class _Divider extends StatelessWidget {
 
 /// ----- TABS (existing placeholders kept) -----
 class _PostsTab extends StatefulWidget {
-  const _PostsTab();
+  final VoidCallback? onPostUpdated;
+  const _PostsTab({this.onPostUpdated, Key? key}) : super(key: key);
   @override
   State<_PostsTab> createState() => _PostsTabState();
 }
-
 class _PostsTabState extends State<_PostsTab> {
   final supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _userPosts = [];
@@ -324,10 +356,11 @@ class _PostsTabState extends State<_PostsTab> {
   @override
   void initState() {
     super.initState();
-    _loadUserPosts();
+    loadUserPosts();
   }
 
-  Future<void> _loadUserPosts() async {
+  // Remove underscore to make it accessible from outside
+  Future<void> loadUserPosts() async {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) return;
@@ -372,95 +405,114 @@ class _PostsTabState extends State<_PostsTab> {
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child:
-                    post['image_url'] != null
-                        ? Image.network(
-                          post['image_url'],
-                          fit: BoxFit.cover,
-                          errorBuilder:
-                              (_, __, ___) => Container(
-                                color: Colors.grey[200],
-                                child: const Center(child: Text('No image')),
-                              ),
-                        )
-                        : Container(
-                          color: Colors.grey[200],
-                          child: const Center(child: Text('No image')),
-                        ),
+      child: InkWell(
+        onTap: () {
+          // Navigate to the detail page
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 350),
+              pageBuilder: (_, a, __) => FadeTransition(
+                opacity: a,
+                child: _DetailsPage(
+                  heroTag: 'profile-post-${post['id']}',
+                  imageUrl: post['image_url'] ?? 'https://picsum.photos/seed/${post['id']}/1000/600',
+                  title: post['title'] ?? 'Untitled',
+                  description: post['description'] ?? 'No description',
+                  status: post['status'] ?? 'Unknown',
+                  location: post['location'] ?? 'Unknown location',
+                  category: post['category'] ?? 'Uncategorized',
+                  createdAt: DateTime.parse(post['created_at']),
+                ),
               ),
-              Positioned(
-                left: 12,
-                top: 12,
-                child: Chip(
-                  backgroundColor: chipColor,
-                  label: Text(
-                    post['status']?.toUpperCase() ?? '',
-                    style: const TextStyle(color: Colors.white),
+            ),
+          );
+        },
+        child: Column(
+          children: [
+            Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: post['image_url'] != null
+                      ? Image.network(
+                    post['image_url'],
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.grey[200],
+                      child: const Center(child: Text('No image')),
+                    ),
+                  )
+                      : Container(
+                    color: Colors.grey[200],
+                    child: const Center(child: Text('No image')),
                   ),
                 ),
-              ),
-            ],
-          ),
-          ListTile(
-            title: Text(post['title'] ?? 'Untitled'),
-            subtitle: Text(
-              [
-                post['location'] ?? '',
-                _getTimeAgo(DateTime.parse(post['created_at'])),
-                post['category'] ?? '',
-              ].where((s) => s.isNotEmpty).join(' • '),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () {
-                    // Add edit functionality
-                  },
-                  tooltip: 'Edit post',
+                Positioned(
+                  left: 12,
+                  top: 12,
+                  child: Chip(
+                    backgroundColor: chipColor,
+                    label: Text(
+                      post['status']?.toUpperCase() ?? '',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Delete post?'),
-                        content: const Text('This action cannot be undone.'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (confirmed == true && mounted) {
-                      await _deletePost(post['id']);
-                    }
-                  },
-                )
-
               ],
             ),
-          ),
-        ],
+            ListTile(
+              title: Text(post['title'] ?? 'Untitled'),
+              subtitle: Text(
+                [
+                  post['location'] ?? '',
+                  _getTimeAgo(DateTime.parse(post['created_at'])),
+                  post['category'] ?? '',
+                ].where((s) => s.isNotEmpty).join(' • '),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () {
+                      // Add edit functionality
+                    },
+                    tooltip: 'Edit post',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete post?'),
+                          content: const Text('This action cannot be undone.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed == true && mounted) {
+                        await _deletePost(post['id']);
+                      }
+                    },
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-
   String _getTimeAgo(DateTime dateTime) {
     final difference = DateTime.now().difference(dateTime);
     if (difference.inDays > 365) {
@@ -526,27 +578,133 @@ class _PostsTabState extends State<_PostsTab> {
   }
 }
 
-class _ClaimsTab extends StatelessWidget {
-  const _ClaimsTab();
+class _ClaimsTab extends StatefulWidget {
+  final GlobalKey<_PostsTabState>? postsTabKey;
+  const _ClaimsTab({this.postsTabKey});
   @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: 3,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder:
-          (_, i) => ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.assignment_turned_in),
-            ),
-            title: Text('Claim: Black Wallet #$i'),
-            subtitle: const Text('Status: Pending • Owner reply expected'),
-            trailing: TextButton(onPressed: () {}, child: const Text('View')),
-          ),
-    );
-  }
+  State<_ClaimsTab> createState() => _ClaimsTabState();
 }
 
+class _ClaimsTabState extends State<_ClaimsTab> {
+  final supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _lostPosts = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLostPosts();
+  }
+
+  Future<void> _loadLostPosts() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final posts = await supabase
+          .from('posts')
+          .select()
+          .eq('user_id', user.id)
+          .eq('status', 'Lost') // Only get lost items
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _lostPosts = List<Map<String, dynamic>>.from(posts as List);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading lost posts: $e');
+      setState(() => _loading = false);
+    }
+  }
+  // Helper method to refresh Posts tab
+  void _refreshPostsTab() {
+    // Find the Posts tab state and refresh it
+    final postsTabState = context.findAncestorStateOfType<_PostsTabState>();
+    postsTabState?.loadUserPosts();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_lostPosts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment_turned_in_outlined,
+                size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No lost items'),
+            Text('All your items have been found!'),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _lostPosts.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, index) {
+        final post = _lostPosts[index];
+        return _claimCard(post, index);
+      },
+    );
+  }
+
+  Widget _claimCard(Map<String, dynamic> post, int index) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.orange.withOpacity(0.1),
+          child: Icon(Icons.assignment_turned_in,
+              color: Colors.orange),
+        ),
+        title: Text(
+          'Claim: ${post['title']} #$index',
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: const Text('Status: Pending • Owner reply expected'),
+        trailing: TextButton(
+          onPressed: () => _viewClaimDetails(post),
+          child: const Text('View'),
+        ),
+      ),
+    );
+  }
+
+  void _viewClaimDetails(Map<String, dynamic> post) async {
+    final shouldRefresh = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _ClaimDetailsPage(post: post),
+      ),
+    );
+
+    // If the item was marked as found, refresh the claims list and counts
+    if (shouldRefresh == true && mounted) {
+      await _loadLostPosts(); // This will reload and exclude found items
+
+      // Also refresh the post count
+      final profileState = context.findAncestorStateOfType<_ProfilePageState>();
+      if (profileState != null) {
+        profileState._loadPostCount(); // Refresh post count
+        profileState._loadClaimCount(); // Refresh claim count
+
+        // Trigger refresh of Posts tab to show updated status using the GlobalKey
+        if (widget.postsTabKey?.currentState != null) {
+          widget.postsTabKey!.currentState!.loadUserPosts();
+        }
+      }
+    }
+  }
+
+
+}
 class _SavedTab extends StatelessWidget {
   const _SavedTab();
   @override
@@ -872,3 +1030,451 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 }
+class _ClaimDetailsPage extends StatelessWidget {
+  final Map<String, dynamic> post;
+
+  const _ClaimDetailsPage({required this.post});
+
+  String _getTimeAgo(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()} years ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()} months ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Claim Details'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Status header
+            Card(
+              color: Colors.orange.withOpacity(0.1),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(Icons.pending_actions, color: Colors.orange),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status: Pending',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          Text('Owner reply expected'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            SizedBox(height: 16),
+
+            // Item image
+            if (post['image_url'] != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  post['image_url'],
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 200,
+                    color: Colors.grey[200],
+                    child: Center(child: Text('No image available')),
+                  ),
+                ),
+              ),
+
+            SizedBox(height: 16),
+
+            // Item details in card format with checkboxes
+            _ClaimDetailItem(
+              icon: Icons.title,
+              label: 'Item',
+              value: post['title'] ?? 'Untitled',
+            ),
+            SizedBox(height: 8),
+            _ClaimDetailItem(
+              icon: Icons.description,
+              label: 'Description',
+              value: post['description'] ?? 'No description',
+            ),
+            SizedBox(height: 8),
+            _ClaimDetailItem(
+              icon: Icons.category,
+              label: 'Category',
+              value: post['category'] ?? 'Uncategorized',
+              isChecked: true,
+            ),
+            SizedBox(height: 8),
+            _ClaimDetailItem(
+              icon: Icons.location_on,
+              label: 'Last Seen',
+              value: post['location'] ?? 'Unknown location',
+            ),
+            SizedBox(height: 8),
+            _ClaimDetailItem(
+              icon: Icons.access_time,
+              label: 'Reported',
+              value: _getTimeAgo(DateTime.parse(post['created_at'])),
+            ),
+
+            SizedBox(height: 24),
+
+            // Mark as Found button (full width)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  _markAsFound(context, post['id']);
+                },
+                icon: Icon(Icons.check_circle_outline),
+                label: Text('Mark as Found'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _markAsFound(BuildContext context, int postId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mark as Found?'),
+        content: const Text('This item will be marked as found and removed from your claims. The post will remain in your Posts section.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Mark as Found'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final supabase = Supabase.instance.client;
+      try {
+        // Show loading
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+
+        // Update post status to 'Found' - this keeps the post in "Posts" but removes it from "Claims"
+        await supabase
+            .from('posts')
+            .update({'status': 'Found'})
+            .eq('id', postId);
+
+        // Close loading dialog
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Item marked as found!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate back to claims list with refresh signal
+        Navigator.of(context).pop(true);
+
+      } catch (e) {
+        // Close loading dialog if still open
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
+
+class _ClaimDetailItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isChecked;
+
+  const _ClaimDetailItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.isChecked = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Checkbox-like icon
+            Icon(
+              isChecked ? Icons.check_box : Icons.check_box_outline_blank,
+              color: isChecked ? Colors.green : Colors.grey,
+              size: 20,
+            ),
+            SizedBox(width: 12),
+            // Icon
+            Icon(icon, size: 20, color: Colors.grey),
+            SizedBox(width: 8),
+            // Label and value
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+}
+class _DetailsPage extends StatelessWidget {
+  final String heroTag;
+  final String imageUrl;
+  final String title;final String description;
+  final String status;
+  final String location;
+  final String category;
+  final DateTime createdAt;
+
+  const _DetailsPage({
+    required this.heroTag,
+    required this.imageUrl,
+    required this.title,
+    required this.description,
+    required this.status,
+    required this.location,
+    required this.category,
+    required this.createdAt,
+  });
+
+  String _getTimeAgo(DateTime dateTime) {
+    // ... (implementation of _getTimeAgo)
+    final difference = DateTime.now().difference(dateTime);
+
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()} years ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()} months ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ... (implementation of build method for _DetailsPage)
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Details'),
+        backgroundColor: const Color(0xFF292929),
+        foregroundColor: Colors.white,
+      ),
+      body: ListView(
+        children: [
+          Hero(
+            tag: heroTag,
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: Text('No image available'),
+                    ),
+                  );
+                },
+              )
+                  : Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Text('No image available'),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Chip(
+              label: Text(
+                status.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              backgroundColor: status.toLowerCase() == 'lost'
+                  ? Colors.red[400]
+                  : Colors.green[400],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DetailField(
+                  icon: Icons.title,
+                  label: 'Title',
+                  value: title,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.description,
+                  label: 'Description',
+                  value: description,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.category,
+                  label: 'Category',
+                  value: category,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.location_on,
+                  label: 'Location',
+                  value: location,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.access_time,
+                  label: 'Posted',
+                  value: _getTimeAgo(createdAt),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailField extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _DetailField({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // ... (implementation of build method for _DetailField)
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: Colors.grey),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+
+
+
+
+
