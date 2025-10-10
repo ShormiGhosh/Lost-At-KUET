@@ -56,14 +56,19 @@ void main() async {
 
           final userEmail = user.email ??
               userMetadata['email'] ??
-              appMetadata['email'] ?? '';
+              appMetadata['email'] ??
+              '';
+
+          // Generate unique username
+          final username = _generateUniqueUsername(userName);
 
           await Supabase.instance.client.from('profiles').upsert({
             'id': user.id,
             'name': userName,
-            'username': _generateUniqueUsername(userName),
+            'username': username,
             'email': userEmail,
             'avatar_url': userMetadata['avatar_url'],
+            'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           });
 
@@ -163,9 +168,11 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isLoading = false;
 
   final SupabaseClient supabase = Supabase.instance.client;
-  final GoogleSignIn _googleSignIn = GoogleSignIn( // Fixed: Added missing semicolon and closing parenthesis
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    clientId: '419649202011-cfb29t2j094ev24l8td2e84sp8s2sgrb.apps.googleusercontent.com', // ← replace with your exact Web client ID
   );
+
 
   @override
   void initState() {
@@ -202,7 +209,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     if (!_isValidEmail(email)) {
-      _showSnackBar('Please enter a valid email address');
+      _showSnackBar('Please enter a valid email address (e.g., name@example.com)');
       return;
     }
 
@@ -221,12 +228,10 @@ class _MyHomePageState extends State<MyHomePage> {
         password: password,
         data: {
           'name': name,
-          'username': _generateUniqueUsername(name),
         },
       );
 
       if (response.user != null) {
-        // Don't create profile here - wait for email verification
         if (mounted) {
           _showSnackBar('Registration successful! Please check your email for verification.');
           _navigateToLogin();
@@ -249,14 +254,11 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  String _generateUniqueUsername(String name) {
-    final baseUsername = name.toLowerCase().replaceAll(' ', '_');
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '${baseUsername}_$timestamp';
-  }
+
 
   bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+    // More permissive email validation
+    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email);
   }
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -297,7 +299,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
         if (mounted) {
           _showSnackBar('Google Sign-In successful!');
-          _navigateToHome();
+          _navigateToLogin();
         }
       }
     } on AuthException catch (error) {

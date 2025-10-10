@@ -30,7 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final SupabaseClient supabase = Supabase.instance.client;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    clientId: '419649202011-cfb29t2j094ev24l8td2e84sp8s2sgrb.apps.googleusercontent.com',
   );
+
 
   @override
   void initState() {
@@ -172,11 +174,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.user != null) {
         // Check if user profile exists, if not create one
         await _createOrUpdateUserProfile(
-            response.user!.id,
-            googleUser.displayName ?? 'User',
-            googleUser.email,
-            googleUser.photoUrl
-
+          response.user!.id,
+          googleUser.displayName ?? 'User',
+          googleUser.email,
+          googleUser.photoUrl,
         );
 
         // Save login state in SharedPreferences
@@ -208,23 +209,28 @@ class _LoginScreenState extends State<LoginScreen> {
       String? avatarUrl
       ) async {
     try {
+      final username = _generateUniqueUsername(name);
+
       await supabase.from('profiles').upsert({
         'id': userId,
         'name': name,
-        'username': _generateUniqueUsername(name), // USE THE FUNCTION HERE
+        'username': username,
         'email': email,
         'avatar_url': avatarUrl,
+        'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       });
     } on PostgrestException catch (e) {
       if (e.code == '23505') { // Unique violation
         // Retry with different username
+        final retryUsername = _generateUniqueUsername(name);
         await supabase.from('profiles').upsert({
           'id': userId,
           'name': name,
-          'username': _generateUniqueUsername(name), // USE THE FUNCTION HERE
+          'username': retryUsername,
           'email': email,
           'avatar_url': avatarUrl,
+          'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
       } else {

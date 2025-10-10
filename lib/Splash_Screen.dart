@@ -125,6 +125,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             Text(
               displayText,
               style: const TextStyle(
+                  fontFamily: 'Caveat-VariableFont_wght',
                 fontSize: 32,
                 fontWeight: FontWeight.w900,
                 color: Color(0xFF292929),
