@@ -86,22 +86,22 @@ class _LostKuetShellState extends State<LostKuetShell>
         ],
       ),
       floatingActionButton:
-      _index == 0
-          ? AnimatedScale(
-        scale: 1,
-        duration: const Duration(milliseconds: 250),
-        child: FloatingActionButton.extended(
-          onPressed:
-              () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const CreatePostScreen(),
-            ),
-          ),
-          icon: const Icon(Icons.add),
-          label: const Text('Post'),
-        ),
-      )
-          : null,
+          _index == 0
+              ? AnimatedScale(
+                scale: 1,
+                duration: const Duration(milliseconds: 250),
+                child: FloatingActionButton.extended(
+                  onPressed:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CreatePostScreen(),
+                        ),
+                      ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Post'),
+                ),
+              )
+              : null,
     );
   }
 }
@@ -124,14 +124,14 @@ void _showPostSheet(BuildContext context) {
     isScrollControlled: true,
     builder:
         (_) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 16,
-        right: 16,
-        top: 8,
-      ),
-      child: const Text('Post Lost / Found form…'),
-    ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 8,
+          ),
+          child: const Text('Post Lost / Found form…'),
+        ),
   );
 }
 
@@ -148,9 +148,9 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
   final _searchFocus = FocusNode();
   final supabase = Supabase.instance.client;
   List<Post> get _filteredPosts =>
-      _posts.where((post) =>
-      post.status.toLowerCase() == _status.toLowerCase()
-      ).toList();
+      _posts
+          .where((post) => post.status.toLowerCase() == _status.toLowerCase())
+          .toList();
 
   bool _filtersExpanded = true;
   String _status = 'Lost';
@@ -158,14 +158,12 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
   late final AnimationController _headerCtrl = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 450),
-  )
-    ..forward();
+  )..forward();
 
   late final AnimationController _staggerCtrl = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 700),
-  )
-    ..forward();
+  )..forward();
 
   final _postService = PostService(Supabase.instance.client);
   List<Post> _posts = [];
@@ -224,60 +222,33 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                         ),
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // put assets/lostatkuet_icon.png in pubspec
-                          Image.asset(
-                            'assets/lostatkuet_icon.png',
-                            height: 36,
-                            errorBuilder: (_, __, ___) {
-                              return Icon(
-                                Icons.location_on,
-                                size: 36,
-                                color: _amber,
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Lost @ KUET',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: Colors.white,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically center
+                            children: [
+                              Image.asset(
+                                'assets/images/lostatkuet_icon.png',
+                                height: 32,
+                                width: 32, // Add explicit width
+                                fit: BoxFit.contain, // Ensure proper scaling
+                              ),
+                              const SizedBox(width: 15),
+                              const Text(
+                                'Lost @ KUET',
+                                style: TextStyle(
+                                  fontFamily: 'Caveat-VariableFont_wght',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 36,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 2),
-                          const _LocRow(),
                         ],
                       ),
                     ),
                     const Spacer(),
-                    // notifications (fade-in from right)
-                    FadeTransition(
-                      opacity: CurvedAnimation(
-                        parent: _headerCtrl,
-                        curve: const Interval(.3, 1, curve: Curves.easeOut),
-                      ),
-                    ),
-                    SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(.15, 0),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: _headerCtrl,
-                          curve: Curves.easeOut,
-                        ),
-                      ),
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          Icons.notifications_none,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -296,15 +267,15 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow:
-                  _searchFocus.hasFocus
-                      ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(.25),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                      : const [],
+                      _searchFocus.hasFocus
+                          ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(.25),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ]
+                          : const [],
                 ),
                 child: Focus(
                   onFocusChange: (_) => setState(() {}),
@@ -318,7 +289,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                       );
                     },
                     decoration: const InputDecoration(
-                      hintText: 'Search item, color, place…',
+                      hintText: 'Search item, place…',
                       prefixIcon: Icon(Icons.search),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(
@@ -351,10 +322,10 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                         ],
                         style: ButtonStyle(
                           backgroundColor: WidgetStateProperty.resolveWith(
-                                (s) =>
-                            s.contains(WidgetState.selected)
-                                ? _amber.withOpacity(.25)
-                                : Colors.white,
+                            (s) =>
+                                s.contains(WidgetState.selected)
+                                    ? const Color(0xFFFFC815)
+                                    : Colors.white,
                           ),
                           foregroundColor: WidgetStateProperty.all(
                             Colors.black87,
@@ -368,97 +339,38 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   ),
 
                   const SizedBox(width: 8),
-                  IconButton(
-                    onPressed:
-                        () =>
-                        setState(
-                              () => _filtersExpanded = !_filtersExpanded,
-                        ),
-                    icon: const Icon(Icons.tune, color: Colors.white),
-                    tooltip: 'Filters',
-                  ),
                   // notifications (fade-in from right)
                   FadeTransition(
-                      opacity: CurvedAnimation(parent: _headerCtrl,
-                          curve: const Interval(.3, 1, curve: Curves.easeOut))),
+                    opacity: CurvedAnimation(
+                      parent: _headerCtrl,
+                      curve: const Interval(.3, 1, curve: Curves.easeOut),
+                    ),
+                  ),
                   SlideTransition(
                     position: Tween<Offset>(
-                        begin: const Offset(.15, 0), end: Offset.zero)
-                        .animate(CurvedAnimation(
-                        parent: _headerCtrl, curve: Curves.easeOut)),
+                      begin: const Offset(.15, 0),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: _headerCtrl,
+                        curve: Curves.easeOut,
+                      ),
+                    ),
                     child: IconButton(
                       onPressed: () {
-                        Navigator.of(context).push(MaterialPageRoute(builder: (
-                            _) => NotificationsPage()));
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => NotificationsPage(),
+                          ),
+                        );
                       },
                       icon: const Icon(
-                          Icons.notifications_none, color: Colors.white),
+                        Icons.notifications_none,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: AnimatedOpacity(
-              opacity: _filtersExpanded ? 1 : 0,
-              duration: const Duration(milliseconds: 220),
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeInOut,
-                child: SizedBox(
-                  height: _filtersExpanded ? 46 : 0,
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    scrollDirection: Axis.horizontal,
-                    children: const [
-                      _Chip('Category'),
-                      _Chip('Distance'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Near you
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  Text(
-                    'Near you',
-                    style: Theme
-                        .of(context)
-                        .textTheme
-                        .titleMedium,
-                  ),
-                  const Spacer(),
-                  TextButton(onPressed: () {}, child: const Text('See all')),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 210,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: 6,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder:
-                    (_, i) =>
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.92, end: 1),
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutBack,
-                      builder:
-                          (_, s, child) =>
-                          Transform.scale(scale: s, child: child),
-                      child: _MiniCard(i: i),
-                    ),
               ),
             ),
           ),
@@ -469,10 +381,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Text(
                 'Latest posts',
-                style: Theme
-                    .of(context)
-                    .textTheme
-                    .titleMedium,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
           ),
@@ -510,8 +419,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
               return AnimatedBuilder(
                 animation: anim,
                 builder:
-                    (context, child) =>
-                    Opacity(
+                    (context, child) => Opacity(
                       opacity: anim.value,
                       child: Transform.translate(
                         offset: Offset(0, (1 - anim.value) * 18),
@@ -524,32 +432,34 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                   description: post.description,
                   status: post.status,
                   chipColor:
-                  post.status.toLowerCase() == 'lost'
-                      ? Colors.red[400]!
-                      : Colors.green[400]!,
+                      post.status.toLowerCase() == 'lost'
+                          ? Colors.red[400]!
+                          : Colors.green[400]!,
                   imageUrl: post.imageUrl,
                   location: post.location,
                   createdAt: post.createdAt,
                   category: post.category,
-                  onTap: () => Navigator.of(context).push(
-                    PageRouteBuilder(
-                      transitionDuration: const Duration(milliseconds: 350),
-                      pageBuilder: (_, a, __) => FadeTransition(
-                        opacity: a,
-                        child: _DetailsPage(
-                          heroTag: 'post-$i',
-                          imageUrl: post.imageUrl ?? '',
-                          title: post.title,
-                          description: post.description,
-                          status: post.status,
-                          location: post.location,
-                          category: post.category,
-                          createdAt: post.createdAt,
-                          posterId: post.userId,
+                  onTap:
+                      () => Navigator.of(context).push(
+                        PageRouteBuilder(
+                          transitionDuration: const Duration(milliseconds: 350),
+                          pageBuilder:
+                              (_, a, __) => FadeTransition(
+                                opacity: a,
+                                child: _DetailsPage(
+                                  heroTag: 'post-$i',
+                                  imageUrl: post.imageUrl ?? '',
+                                  title: post.title,
+                                  description: post.description,
+                                  status: post.status,
+                                  location: post.location,
+                                  category: post.category,
+                                  createdAt: post.createdAt,
+                                  posterId: post.userId,
+                                ),
+                              ),
                         ),
                       ),
-                    ),
-                  ),
                   posterId: post.userId,
                 ),
               );
@@ -585,106 +495,12 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
     } catch (e) {
       debugPrint('Error loading posts: $e'); // Use debugPrint instead of print
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading posts: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading posts: $e')));
       }
       setState(() => _isLoading = false);
     }
-  }
-}
-
-class _LocRow extends StatelessWidget {
-  const _LocRow();
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Icon(Icons.location_on_outlined, size: 16, color: Colors.white70),
-        SizedBox(width: 4),
-        Text(
-          'KUET, Khulna',
-          style: TextStyle(fontSize: 13, color: Colors.white70),
-        ),
-      ],
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  final String label;
-  const _Chip(this.label);
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        onSelected: (_) {},
-        selectedColor: _amber.withOpacity(.25),
-        showCheckmark: false,
-      ),
-    );
-  }
-}
-
-class _MiniCard extends StatelessWidget {
-  final int i;
-  const _MiniCard({required this.i});
-  @override
-  Widget build(BuildContext context) {
-    final img = 'https://picsum.photos/seed/mini$i/600/340';
-    return SizedBox(
-      width: 160,
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => _DetailsPage(
-                heroTag: 'mini-$i',
-                imageUrl: img,
-                title: 'Black Wallet',
-                description: 'A black leather wallet lost near cafeteria.',
-                status: 'Lost',
-                location: 'Cafeteria',
-                category: 'Accessories',
-                createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-                posterId: 'unknown',
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Hero(
-                tag: 'mini-$i',
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.network(img, fit: BoxFit.cover),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  'Black Wallet',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(8, 0, 8, 8),
-                child: Text(
-                  '📍 Cafeteria • 2h',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -743,49 +559,53 @@ class _PostCard extends StatelessWidget {
         onTap: onTap,
         child: Column(
           children: [
-          Hero(
-          tag: 'post-$index',
-            flightShuttleBuilder: (_, animation, __, ___, ____) {
-              return AnimatedBuilder(
-                animation: animation,
-                builder: (context, child) => Container(
-                  decoration: const BoxDecoration(color: Colors.white),
-                  child: child,
-                ),
-              );
-            }, child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: (imageUrl != null && imageUrl!.isNotEmpty)
-                  ? Image.network(
-                imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Text(
-                      'No image available',
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontSize: 16,
+            Hero(
+              tag: 'post-$index',
+              flightShuttleBuilder: (_, animation, __, ___, ____) {
+                return AnimatedBuilder(
+                  animation: animation,
+                  builder:
+                      (context, child) => Container(
+                        decoration: const BoxDecoration(color: Colors.white),
+                        child: child,
                       ),
-                    ),
-                  ),
-                ),
-              )
-                  : Container(
-                color: Colors.grey[200],
-                child: const Center(
-                  child: Text(
-                    'No image available',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
+                );
+              },
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child:
+                    (imageUrl != null && imageUrl!.isNotEmpty)
+                        ? Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder:
+                              (_, __, ___) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Text(
+                                    'No image available',
+                                    style: TextStyle(
+                                      color: Colors.black54,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                        )
+                        : Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Text(
+                              'No image available',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
               ),
-            )
-          ),
+            ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -793,7 +613,12 @@ class _PostCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: Text(title, style: const TextStyle(fontSize: 16))),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
                       Chip(
                         label: Text(
                           status,
@@ -813,7 +638,11 @@ class _PostCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, size: 16, color: Colors.black54),
+                      const Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: Colors.black54,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         location,
@@ -835,15 +664,30 @@ class _PostCard extends StatelessWidget {
                           final supabase = Supabase.instance.client;
                           final currentUser = supabase.auth.currentUser;
                           if (currentUser == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sign in to message')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Sign in to message'),
+                              ),
+                            );
                             return;
                           }
                           final chatService = ChatService(supabase);
                           try {
-                            final chat = await chatService.createOrGetDirectChat(currentUser.id, posterId);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)));
+                            final chat = await chatService
+                                .createOrGetDirectChat(
+                                  currentUser.id,
+                                  posterId,
+                                );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatDetailPage(chat: chat),
+                              ),
+                            );
                           } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error opening chat: $e')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error opening chat: $e')),
+                            );
                           }
                         },
                         icon: const Icon(Icons.chat_bubble_outline),
@@ -851,7 +695,10 @@ class _PostCard extends StatelessWidget {
                       ),
                       // Inbox shortcut: open chat list
                       IconButton(
-                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage())),
+                        onPressed:
+                            () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => ChatPage()),
+                            ),
                         icon: const Icon(Icons.mail_outline),
                         tooltip: 'Open inbox',
                       ),
@@ -890,7 +737,6 @@ class _DetailsPage extends StatelessWidget {
     required this.posterId,
   });
 
-
   String _getTimeAgo(DateTime dateTime) {
     final difference = DateTime.now().difference(dateTime);
 
@@ -909,142 +755,157 @@ class _DetailsPage extends StatelessWidget {
     }
   }
 
-@override
-Widget build(BuildContext context) {
-  // Rest of the build method remains the same
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Details'),
-      backgroundColor: const Color(0xFF292929),
-      foregroundColor: Colors.white,
-    ),
-    body: ListView(
-      children: [
-        Hero(
-          tag: heroTag,
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: (imageUrl.isNotEmpty)
-                ? Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: Colors.grey[200],
-                child: const Center(
-                  child: Text(
-                    'No image available',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 16,
+  @override
+  Widget build(BuildContext context) {
+    // Rest of the build method remains the same
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Details'),
+        backgroundColor: const Color(0xFF292929),
+        foregroundColor: Colors.white,
+      ),
+      body: ListView(
+        children: [
+          Hero(
+            tag: heroTag,
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child:
+                  (imageUrl.isNotEmpty)
+                      ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (_, __, ___) => Container(
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Text(
+                                  'No image available',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                      )
+                      : Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: Text(
+                            'No image available',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+            ),
+          ),
+          // Status chip
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Chip(
+              label: Text(
+                status.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              backgroundColor:
+                  status.toLowerCase() == 'lost'
+                      ? Colors.red[400]
+                      : Colors.green[400],
+            ),
+          ),
+
+          // Details form
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DetailField(icon: Icons.title, label: 'Title', value: title),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.description,
+                  label: 'Description',
+                  value: description,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.category,
+                  label: 'Category',
+                  value: category,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.location_on,
+                  label: 'Location',
+                  value: location,
+                ),
+                const SizedBox(height: 16),
+                _DetailField(
+                  icon: Icons.access_time,
+                  label: 'Posted',
+                  value: _getTimeAgo(createdAt),
+                ),
+              ],
+            ),
+          ),
+
+          // Contact button
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final supabase = Supabase.instance.client;
+                final currentUser = supabase.auth.currentUser;
+                if (currentUser == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'You must be signed in to contact the poster',
+                      ),
                     ),
-                  ),
-                ),
-              ),
-            )
-                : Container(
-              color: Colors.grey[200],
-              child: const Center(
-                child: Text(
-                  'No image available',
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: 16,
-                  ),
-                ),
+                  );
+                  return;
+                }
+
+                final chatService = ChatService(supabase);
+                try {
+                  final chat = await chatService.createOrGetDirectChat(
+                    currentUser.id,
+                    posterId,
+                  );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatDetailPage(chat: chat),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error opening chat: $e')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Contact Poster'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF292929),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                minimumSize: const Size(double.infinity, 50),
               ),
             ),
           ),
-        ),
-        // Status chip
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Chip(
-            label: Text(
-              status.toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            backgroundColor: status.toLowerCase() == 'lost'
-                ? Colors.red[400]
-                : Colors.green[400],
-          ),
-        ),
-
-        // Details form
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _DetailField(
-                icon: Icons.title,
-                label: 'Title',
-                value: title,
-              ),
-              const SizedBox(height: 16),
-              _DetailField(
-                icon: Icons.description,
-                label: 'Description',
-                value: description,
-              ),
-              const SizedBox(height: 16),
-              _DetailField(
-                icon: Icons.category,
-                label: 'Category',
-                value: category,
-              ),
-              const SizedBox(height: 16),
-              _DetailField(
-                icon: Icons.location_on,
-                label: 'Location',
-                value: location,
-              ),
-              const SizedBox(height: 16),
-              _DetailField(
-                icon: Icons.access_time,
-                label: 'Posted',
-                value: _getTimeAgo(createdAt),
-              ),
-            ],
-          ),
-        ),
-
-        // Contact button
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton.icon(
-            onPressed: () async {
-              final supabase = Supabase.instance.client;
-              final currentUser = supabase.auth.currentUser;
-              if (currentUser == null) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You must be signed in to contact the poster')));
-                return;
-              }
-
-              final chatService = ChatService(supabase);
-              try {
-                final chat = await chatService.createOrGetDirectChat(currentUser.id, posterId);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)));
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error opening chat: $e')));
-              }
-            },
-            icon: const Icon(Icons.chat_bubble_outline),
-            label: const Text('Contact Poster'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF292929),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              minimumSize: const Size(double.infinity, 50),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 }
 
 class _DetailField extends StatelessWidget {
@@ -1069,20 +930,12 @@ class _DetailField extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ],
         ),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-          ),
-        ),
+        Text(value, style: const TextStyle(fontSize: 16)),
       ],
     );
   }
@@ -1189,11 +1042,12 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _searchQuery.isEmpty
-          ? _buildSearchSuggestions()
-          : _buildSearchResults(),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _searchQuery.isEmpty
+              ? _buildSearchSuggestions()
+              : _buildSearchResults(),
     );
   }
 
@@ -1243,9 +1097,10 @@ class _SearchPageState extends State<SearchPage> {
           title: post.title,
           description: post.description,
           status: post.status,
-          chipColor: post.status.toLowerCase() == 'lost'
-              ? Colors.red[400]!
-              : Colors.green[400]!,
+          chipColor:
+              post.status.toLowerCase() == 'lost'
+                  ? Colors.red[400]!
+                  : Colors.green[400]!,
           location: post.location,
           createdAt: post.createdAt,
           imageUrl: post.imageUrl,
@@ -1254,20 +1109,23 @@ class _SearchPageState extends State<SearchPage> {
             Navigator.of(context).push(
               PageRouteBuilder(
                 transitionDuration: const Duration(milliseconds: 350),
-                pageBuilder: (_, a, __) => FadeTransition(
-                  opacity: a,
-                  child: _DetailsPage(
-                    heroTag: 'search-$index',
-                    imageUrl: post.imageUrl ?? 'https://picsum.photos/seed/$index/1000/600',
-                    title: post.title,
-                    description: post.description,
-                    status: post.status,
-                    location: post.location,
-                    category: post.category,
-                    createdAt: post.createdAt,
-                    posterId: post.userId,
-                  ),
-                ),
+                pageBuilder:
+                    (_, a, __) => FadeTransition(
+                      opacity: a,
+                      child: _DetailsPage(
+                        heroTag: 'search-$index',
+                        imageUrl:
+                            post.imageUrl ??
+                            'https://picsum.photos/seed/$index/1000/600',
+                        title: post.title,
+                        description: post.description,
+                        status: post.status,
+                        location: post.location,
+                        category: post.category,
+                        createdAt: post.createdAt,
+                        posterId: post.userId,
+                      ),
+                    ),
               ),
             );
           },
