@@ -110,6 +110,8 @@ class _ProfilePageState extends State<ProfilePage>
     final username = (_profile?['username'] as String?) ?? '';
     final phone = (_profile?['phone'] as String?) ?? '';
     final avatar = (_profile?['avatar_url'] as String?);
+    final department = (_profile?['department'] as String?) ?? 'Department';
+    final batch = (_profile?['batch'] as String?) ?? 'Batch';
 
     return Scaffold(
       body: NestedScrollView(
@@ -204,24 +206,16 @@ class _ProfilePageState extends State<ProfilePage>
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        const SizedBox(width: 6),
-                                        _badge(
-                                          'KUET',
-                                          Icons.verified_rounded,
-                                          Colors.green,
-                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
-                                    Text(
-                                      '@$username  •  $phone',
-                                      style: TextStyle(
-                                        color: cs.onSurfaceVariant,
-                                      ),
-                                    ),
+                                    phone.isNotEmpty
+                                        ? Text('@$username  •  $phone')
+                                        : Text('@$username'),
+
                                     const SizedBox(height: 6),
                                     Text(
-                                      'CSE • KUET • 2026',
+                                      '$department • KUET • $batch',
                                       style: TextStyle(
                                         color: cs.onSurfaceVariant,
                                       ),
@@ -249,12 +243,6 @@ class _ProfilePageState extends State<ProfilePage>
                                   if (didSave == true) await _loadProfile();
                                 },
                                 child: const Text('Edit profile'),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.verified_user_outlined),
-                                label: const Text('Verify KUET'),
                               ),
                             ],
                           ),
@@ -294,52 +282,6 @@ class _ProfilePageState extends State<ProfilePage>
           ],
         ),
       ),
-    );
-  }
-}
-
-Widget _badge(String text, IconData icon, Color color) => Container(
-  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-  decoration: BoxDecoration(
-    color: color.withOpacity(.12),
-    borderRadius: BorderRadius.circular(20),
-  ),
-  child: Row(
-    children: [
-      Icon(icon, size: 14, color: color),
-      const SizedBox(width: 4),
-      Text(text, style: TextStyle(fontSize: 12, color: color)),
-    ],
-  ),
-);
-
-class _Stat extends StatelessWidget {
-  final String label, value;
-  const _Stat({required this.label, required this.value});
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 2),
-        Text(label, style: TextStyle(color: cs.onSurfaceVariant)),
-      ],
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  const _Divider();
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 28,
-      color: Theme.of(context).dividerColor,
     );
   }
 }
@@ -798,10 +740,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController _phoneController = TextEditingController(
     text: widget.profile?['phone'] ?? '',
   );
+  late final TextEditingController _departmentController = TextEditingController(
+    text: widget.profile?['department'] ?? '',
+  );
+  late final TextEditingController _batchController = TextEditingController(
+    text: widget.profile?['batch'] ?? '',
+  );
   XFile? _picked;
   bool _saving = false;
   bool _avatarRemoved = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _usernameController.dispose();
+    _phoneController.dispose();
+    _departmentController.dispose();
+    _batchController.dispose();
+    super.dispose();
+  }
   Future<String?> _uploadAvatarLocal(XFile file) async {
     try {
       final bytes = await file.readAsBytes();
@@ -823,6 +780,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+
   Future<void> _saveProfile() async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -841,8 +799,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
           return;
         }
       }
-      // If user removed avatar in the editor and didn't pick a replacement,
-      // ensure we persist avatar_url as null instead of restoring the old value.
       if (_avatarRemoved && _picked == null) {
         avatarUrlFinal = null;
       }
@@ -856,35 +812,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'username': _usernameController.text.trim(),
         'email': user.email ?? widget.profile?['email'],
         'phone': _phoneController.text.trim(),
+        'department': _departmentController.text.trim(),
+        'batch': _batchController.text.trim(),
         'avatar_url': avatarUrlFinal,
         'updated_at': DateTime.now().toIso8601String(),
       });
 
-      // check for error in response (supabase-dart usually throws on error)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Profile saved')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile saved')),
+      );
       Navigator.of(context).pop(true);
-    } catch (e, st) {
-      debugPrint('profile save error: $e\n$st');
-      final msg = e.toString();
-      if (msg.contains('column') && msg.contains('avatar_url')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Database missing column `avatar_url`. Add this column to `profiles` table.',
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
-      }
+    } catch (e) {
+      debugPrint('profile save error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Save failed: $e')),
+      );
     } finally {
       setState(() => _saving = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -895,14 +842,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
         actions: [
           TextButton(
             onPressed: _saving ? null : _saveProfile,
-            child:
-                _saving
-                    ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Text('Save', style: TextStyle(color: Colors.white)),
+            child: _saving
+                ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(color: Colors.white),
+            )
+                : const Text('Save', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1031,34 +977,55 @@ class _EditProfilePageState extends State<EditProfilePage> {
             const SizedBox(height: 16),
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Full name'),
+              decoration: const InputDecoration(
+                labelText: 'Full name',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _phoneController,
-              decoration: const InputDecoration(labelText: 'Phone'),
+              decoration: const InputDecoration(
+                labelText: 'Phone',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _departmentController,
+              decoration: const InputDecoration(
+                labelText: 'Department',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _batchController,
+              decoration: const InputDecoration(
+                labelText: 'Batch',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _saving ? null : _saveProfile,
-                child:
-                    _saving
-                        ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                        : const Text('Save'),
+                child: _saving
+                    ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(),
+                )
+                    : const Text('Save Profile'),
               ),
             ),
           ],
