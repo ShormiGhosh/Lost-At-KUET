@@ -6,6 +6,8 @@ class Post {
   final String status;
   final String category;
   final String location;
+  final double? latitude;
+  final double? longitude;
   final String? imageUrl;
   final DateTime createdAt;
 
@@ -17,6 +19,8 @@ class Post {
     required this.status,
     required this.category,
     required this.location,
+    this.latitude,
+    this.longitude,
     this.imageUrl,
     required this.createdAt,
   });
@@ -42,6 +46,8 @@ class Post {
       status: (json['status'] ?? '') as String,
       category: (json['category'] ?? '') as String,
       location: (json['location'] ?? '') as String,
+      latitude: json['latitude'] is num ? (json['latitude'] as num).toDouble() : (json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null),
+      longitude: json['longitude'] is num ? (json['longitude'] as num).toDouble() : (json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null),
       imageUrl: json['image_url'] as String?,
       createdAt: createdAt,
     );
@@ -56,6 +62,8 @@ class Post {
       'status': status,
       'category': category,
       'location': location,
+      'latitude': latitude,
+      'longitude': longitude,
       'image_url': imageUrl,
       'created_at': createdAt.toIso8601String(),
     };
