@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'map_picker.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -21,6 +22,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   String _status = 'Lost';
   String _category = 'Wallet';
   File? _image;
+  double? _latitude;
+  double? _longitude;
+  String? _locationLabel;
   bool _isLoading = false;
   final List<String> _categories = [
     'Wallet',
@@ -43,6 +47,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         status: _status,  // Changed from isLost
         category: _category,  // Added
         imagePath: _image?.path,
+        latitude: _latitude,
+        longitude: _longitude,
       );
 
       if (mounted) {
@@ -218,6 +224,34 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(_locationLabel ?? 'No pinned location', style: const TextStyle(fontSize: 14)),
+                  ),
+                  TextButton.icon(
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            final result = await Navigator.push<MapPickerResult?>(
+                              context,
+                              MaterialPageRoute(builder: (_) => const MapPickerPage()),
+                            );
+                            if (result != null) {
+                              setState(() {
+                                _latitude = result.latitude;
+                                _longitude = result.longitude;
+                                _locationLabel = result.address;
+                                _locationController.text = result.address;
+                              });
+                            }
+                          },
+                    icon: const Icon(Icons.map),
+                    label: const Text('Pick on map'),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               ElevatedButton(
