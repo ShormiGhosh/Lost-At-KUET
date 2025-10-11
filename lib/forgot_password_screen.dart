@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'home_enhanced.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -24,17 +27,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // ⚠️ REPLACE THESE WITH YOUR EMAILJS CREDENTIALS
+  final String _emailJsServiceId = 'service_3rulrbx';     // From Step 2
+  final String _emailJsTemplateId = 'template_12n81hf';   // From Step 3
+  final String _emailJsPublicKey = '8tXaBu5ICIijo5ft_';     // From Step 4
+
   @override
   void dispose() {
     _timer?.cancel();
+    _emailController.dispose();
+    _codeController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  String _generateVerificationCode() {
-    final random = DateTime.now().millisecondsSinceEpoch;
-    return (random % 900000 + 100000).toString(); // 6-digit code
+  // Generate secure 6-digit verification code
+  String _generateSecureVerificationCode() {
+    final random = Random.secure();
+    return List.generate(6, (_) => random.nextInt(10)).join();
   }
 
+  // Send verification code via EmailJS
   Future<void> _sendVerificationCode() async {
     final String email = _emailController.text.trim();
 
@@ -43,33 +57,80 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
+    // Basic email validation
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      _showSnackBar('Please enter a valid email address');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Generate 6-digit code
-      final String verificationCode = _generateVerificationCode();
+      // Check rate limiting (max 3 requests in 5 minutes)
+      final recentCodes = await _supabase
+          .from('password_reset_codes')
+          .select()
+          .eq('email', email)
+          .gte('created_at', DateTime.now().subtract(Duration(minutes: 5)).toIso8601String())
+          .order('created_at', ascending: false);
 
-      // Store code in database using your schema
+      if (recentCodes.length >= 3) {
+        _showSnackBar('⚠️ Too many requests. Please try again in 5 minutes.');
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Generate secure 6-digit code
+      final String verificationCode = _generateSecureVerificationCode();
+
+      print('Generated code: $verificationCode for email: $email');
+
+      // Store code in database
       await _supabase.from('password_reset_codes').insert({
         'email': email,
         'code': verificationCode,
         'expires_at': DateTime.now().add(Duration(minutes: 10)).toIso8601String(),
+        'used': false,
       });
 
-      setState(() {
-        _codeSent = true;
-        _countdown = 60; // 60 seconds countdown
-      });
+      print('Code stored in database successfully');
 
-      _startCountdown();
+      // Send email via EmailJS
+      final response = await http.post(
+        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'service_id': _emailJsServiceId,
+          'template_id': _emailJsTemplateId,
+          'user_id': _emailJsPublicKey,
+          'template_params': {
+            'to_email': email,
+            'code': verificationCode,
+          }
+        }),
+      );
 
-      // For testing - show code in snackbar
-      _showSnackBar('Verification code: $verificationCode');
+      print('EmailJS Response Status: ${response.statusCode}');
+      print('EmailJS Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _codeSent = true;
+          _countdown = 60;
+        });
+        _startCountdown();
+        _showSnackBar('✅ Verification code sent to $email');
+      } else {
+        throw Exception('Failed to send email: ${response.body}');
+      }
 
     } catch (error) {
-      _showSnackBar('Failed to send verification code: $error');
+      print('Error sending verification code: $error');
+      _showSnackBar('❌ Failed to send code: $error');
     } finally {
       setState(() {
         _isLoading = false;
@@ -77,6 +138,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
+  // Verify the code entered by user
   Future<void> _verifyCode() async {
     final String email = _emailController.text.trim();
     final String code = _codeController.text.trim();
@@ -91,17 +153,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      // Verify code from database using your schema
+      // Verify code from database
       final response = await _supabase
           .from('password_reset_codes')
           .select()
           .eq('email', email)
           .eq('code', code)
           .eq('used', false)
-          .single();
+          .maybeSingle();
 
       if (response != null) {
         final expiresAt = DateTime.parse(response['expires_at']);
+
         if (DateTime.now().isBefore(expiresAt)) {
           // Mark code as used
           await _supabase
@@ -113,13 +176,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           setState(() {
             _codeVerified = true;
           });
-          _showSnackBar('Code verified successfully');
+          _showSnackBar('✅ Code verified successfully!');
         } else {
-          _showSnackBar('Code has expired');
+          _showSnackBar('❌ Code has expired. Please request a new one.');
         }
+      } else {
+        _showSnackBar('❌ Invalid verification code');
       }
     } catch (error) {
-      _showSnackBar('Invalid verification code');
+      print('Error verifying code: $error');
+      _showSnackBar('❌ Invalid verification code');
     } finally {
       setState(() {
         _isLoading = false;
@@ -127,19 +193,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
+  // Reset password and login
   Future<void> _resetPasswordAndLogin() async {
+    final String email = _emailController.text.trim();
     final String newPassword = _newPasswordController.text.trim();
     final String confirmPassword = _confirmPasswordController.text.trim();
 
     // Check if passwords are provided and match
     if (newPassword.isNotEmpty || confirmPassword.isNotEmpty) {
       if (newPassword.length < 6) {
-        _showSnackBar('Password must be at least 6 characters');
+        _showSnackBar('❌ Password must be at least 6 characters');
         return;
       }
 
       if (newPassword != confirmPassword) {
-        _showSnackBar('Passwords do not match');
+        _showSnackBar('❌ Passwords do not match');
         return;
       }
 
@@ -148,15 +216,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       });
 
       try {
-        // Try to update password (user needs to be signed in for this to work)
-        // For demo purposes, we'll just navigate to home
-        await Future.delayed(Duration(seconds: 1)); // Simulate API call
+        // Check if user exists
+        final userResponse = await _supabase
+            .from('users')
+            .select()
+            .eq('email', email)
+            .maybeSingle();
 
-        _showSnackBar('Password reset successful!');
-        _navigateToHome();
+        if (userResponse != null) {
+          // Update password in your users table
+          // ⚠️ IMPORTANT: Consider hashing the password for security!
+          await _supabase
+              .from('users')
+              .update({'password': newPassword})
+              .eq('email', email);
+
+          _showSnackBar('✅ Password reset successful!');
+
+          // Auto login after password reset
+          await Future.delayed(Duration(seconds: 1));
+          _navigateToHome();
+        } else {
+          _showSnackBar('❌ User not found');
+        }
 
       } catch (error) {
-        _showSnackBar('Password reset failed: $error');
+        print('Password reset error: $error');
+        _showSnackBar('❌ Password reset failed: $error');
+      } finally {
         setState(() {
           _isLoading = false;
         });
@@ -168,7 +255,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _loginAnyway() {
-    _showSnackBar('Logged in successfully!');
+    _showSnackBar('✅ Logged in successfully!');
     _navigateToHome();
   }
 
@@ -181,6 +268,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _startCountdown() {
+    _timer?.cancel();
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_countdown > 0) {
         setState(() {
@@ -194,7 +282,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 3),
+      ),
     );
   }
 
@@ -215,6 +307,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // STEP 1: Enter Email
             if (!_codeSent) ...[
               Text(
                 'Enter your email address',
@@ -230,8 +323,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Email Address',
+                  hintText: 'your-email@kuet.ac.bd',
                   prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -241,6 +337,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _sendVerificationCode,
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                   child: _isLoading
                       ? SizedBox(
                     height: 20,
@@ -250,11 +351,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                      : Text('Send Verification Code'),
+                      : Text(
+                    'Send Verification Code',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
             ],
 
+            // STEP 2: Enter Verification Code
             if (_codeSent && !_codeVerified) ...[
               Text(
                 'Enter verification code',
@@ -265,22 +370,50 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 'We sent a 6-digit code to ${_emailController.text}',
                 style: TextStyle(color: Colors.grey[600]),
               ),
+              SizedBox(height: 10),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Check your email inbox (and spam folder)',
+                        style: TextStyle(color: Colors.blue[900], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               SizedBox(height: 30),
               TextField(
                 controller: _codeController,
                 decoration: InputDecoration(
                   labelText: 'Verification Code',
-                  prefixIcon: Icon(Icons.code),
-                  border: OutlineInputBorder(),
+                  hintText: '123456',
+                  prefixIcon: Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 keyboardType: TextInputType.number,
                 maxLength: 6,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 24, letterSpacing: 10),
               ),
               SizedBox(height: 10),
               if (_countdown > 0)
-                Text(
-                  'Resend code in $_countdown seconds',
-                  style: TextStyle(color: Colors.grey[600]),
+                Center(
+                  child: Text(
+                    'Resend code in $_countdown seconds',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                 ),
               SizedBox(height: 20),
               Row(
@@ -290,6 +423,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       height: 50,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _verifyCode,
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
                         child: _isLoading
                             ? SizedBox(
                           height: 20,
@@ -299,20 +437,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                            : Text('Verify Code'),
+                            : Text('Verify Code', style: TextStyle(fontSize: 16)),
                       ),
                     ),
                   ),
-                  SizedBox(width: 10),
-                  if (_countdown == 0)
+                  if (_countdown == 0) ...[
+                    SizedBox(width: 10),
                     TextButton(
                       onPressed: _sendVerificationCode,
-                      child: Text('Resend Code'),
+                      child: Text('Resend'),
                     ),
+                  ],
                 ],
               ),
             ],
 
+            // STEP 3: Reset Password
             if (_codeVerified) ...[
               Text(
                 'Set New Password',
@@ -330,7 +470,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 controller: _newPasswordController,
                 obscureText: !_isNewPasswordVisible,
                 decoration: InputDecoration(
-                  labelText: 'Create new password',
+                  labelText: 'New Password',
+                  hintText: 'Enter new password',
                   prefixIcon: Icon(Icons.lock),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -342,7 +483,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       });
                     },
                   ),
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               SizedBox(height: 20),
@@ -352,7 +495,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 controller: _confirmPasswordController,
                 obscureText: !_isConfirmPasswordVisible,
                 decoration: InputDecoration(
-                  labelText: 'Confirm new password',
+                  labelText: 'Confirm Password',
+                  hintText: 'Re-enter password',
                   prefixIcon: Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -364,13 +508,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       });
                     },
                   ),
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               SizedBox(height: 10),
-              Text(
-                'Password fields are optional. You can login without resetting your password.',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber[700], size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Password fields are optional. You can login without resetting.',
+                        style: TextStyle(color: Colors.amber[900], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               SizedBox(height: 30),
 
@@ -380,6 +542,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _resetPasswordAndLogin,
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                   child: _isLoading
                       ? SizedBox(
                     height: 20,
@@ -389,7 +556,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                      : Text('Reset Password and Login'),
+                      : Text(
+                    'Reset Password & Login',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
               SizedBox(height: 15),
@@ -400,7 +570,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 height: 50,
                 child: OutlinedButton(
                   onPressed: _isLoading ? null : _loginAnyway,
-                  child: Text('Login Anyway'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'Login Anyway',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
             ],
