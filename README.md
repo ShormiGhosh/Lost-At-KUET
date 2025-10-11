@@ -128,7 +128,7 @@ The project was developed as part of the **Information System Design Lab**, inte
 7. **Run the application**
 
    flutter run
-   
+
 
 ---
 
@@ -179,7 +179,18 @@ The project was developed as part of the **Information System Design Lab**, inte
   Information System Design Lab,
   Department of Computer Science and Engineering, KUET.
   © 2025 Lost@KUET Team. All rights reserved.
+  
 
+---
+
+
+### Team Members
+
+Member 1	Shormi Ghosh (2107109)
+Member 2	Sadia Mostafa (2107095)
+Member 3  Tajnoor Sultana (2107108)
+
+  
 ---
 
 
