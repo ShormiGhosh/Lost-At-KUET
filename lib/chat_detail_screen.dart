@@ -123,7 +123,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         createdAt: record['created_at'] != null ? DateTime.parse(record['created_at']) : DateTime.now(),
         read: record['read'] ?? false,
         readAt: record['read_at'] != null ? DateTime.parse(record['read_at']) : null,
-        sender: Profile(id: record['sender_id'], username: record['sender_name'] ?? 'User'),
+        sender: Profile(
+          id: record['sender_id'],
+          username: record['sender_name'] ?? 'User',
+          isVerified: record['is_verified'] ?? false, // Add this line
+        ),
       );
     }
   }
@@ -294,12 +298,24 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   : null,
             ),
             const SizedBox(width: 8),
-            Text(
-              widget.chat.otherUser.username,
-              style: const TextStyle(
-                color: Color(0xFFFFFFFF),
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Text(
+                  widget.chat.otherUser.username,
+                  style: const TextStyle(
+                    color: Color(0xFFFFFFFF),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (widget.chat.otherUser.isVerified) ...[
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.verified,
+                    color: Colors.green,
+                    size: 16,
+                  ),
+                ],
+              ],
             ),
           ],
         ),

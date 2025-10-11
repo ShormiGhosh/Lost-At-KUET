@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'Login_screen.dart';
 import 'Splash_Screen.dart';
 import 'home_enhanced.dart';
+import 'models/verififiedkuetian.dart';
 import 'supabase_config.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 String _generateUniqueUsername(String name) {
@@ -238,8 +239,19 @@ class _MyHomePageState extends State<MyHomePage> {
       );
 
       if (response.user != null) {
+       final isKuetEmail = KuetEmailValidator.isKuetEmail(email);
+
+        if (isKuetEmail) {
+          await supabase.from('profiles').update({
+            'is_verified': true,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', response.user!.id);
+        }
+
         if (mounted) {
-          _showSnackBar('Registration successful! Please check your email for verification.');
+          _showSnackBar(isKuetEmail
+              ? 'Registration successful! Your KUET email has been verified.'
+              : 'Registration successful!');
           _navigateToLogin();
         }
       }
@@ -260,11 +272,9 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-
-
   bool _isValidEmail(String email) {
     // More permissive email validation
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email);
+    return (RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)||KuetEmailValidator.isKuetEmail(email));
   }
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -316,7 +326,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (error) {
       print('Google Sign-In error: $error');
       if (mounted) {
-        _showSnackBar('An error occurred during Google Sign-In');
+        _showSnackBar('An error occurred during Google Sign-Up');
       }
     } finally {
       if (mounted) {

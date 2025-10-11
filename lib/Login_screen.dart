@@ -276,6 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Text(
                   "Lost @ KUET",
                   style: TextStyle(
+                    fontFamily: 'Caveat-VariableFont_wght',
                     fontSize: 35,
                     color: const Color(0xFF292929),
                     fontWeight: FontWeight.bold,

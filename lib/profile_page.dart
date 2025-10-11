@@ -112,6 +112,8 @@ class _ProfilePageState extends State<ProfilePage>
     final avatar = (_profile?['avatar_url'] as String?);
     final department = (_profile?['department'] as String?) ?? 'Department';
     final batch = (_profile?['batch'] as String?) ?? 'Batch';
+    final isVerified = (_profile?['is_verified'] as bool?) ?? false; // Add this line
+
 
     return Scaffold(
       body: NestedScrollView(
@@ -201,6 +203,17 @@ class _ProfilePageState extends State<ProfilePage>
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
+                                        if (isVerified) ...[
+                                          const SizedBox(width: 4),
+                                          Tooltip(
+                                            message: 'KUETian',
+                                            child: Icon(
+                                              Icons.verified_rounded,
+                                              color: Colors.green,
+                                              size: 20,
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                     const SizedBox(height: 4),
