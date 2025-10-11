@@ -372,7 +372,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _navigateToLogin() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
+      MaterialPageRoute(builder: (context) => LostKuetShell()),
     );
   }
 

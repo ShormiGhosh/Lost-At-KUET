@@ -130,12 +130,7 @@ class _ProfilePageState extends State<ProfilePage>
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                actions: [
-                  IconButton(
-                    icon: Icon(Icons.share_outlined, color: cs.onSurface),
-                    onPressed: () {},
-                  ),
-                ],
+
                 flexibleSpace: FlexibleSpaceBar(
                   background: SingleChildScrollView(
                     child: Container(
@@ -265,8 +260,7 @@ class _ProfilePageState extends State<ProfilePage>
                       unselectedLabelColor: cs.onSecondary,
                       tabs: [
                         Tab(text: 'Posts ($_postCount)'),
-                        Tab(text: 'Claims ($_claimCount)'), // Changed from 'Claims (4)'
-                        Tab(text: 'Saved (2)'),
+                        Tab(text: 'Claims ($_claimCount)'),
                       ],
                     ),
                   ),
@@ -277,8 +271,7 @@ class _ProfilePageState extends State<ProfilePage>
           controller: _tabs,
           children: [
             _PostsTab(key: _postsTabKey, onPostUpdated: _loadPostCount), // Add key here
-            _ClaimsTab(postsTabKey: _postsTabKey), // Pass the key to Claims tab
-            _SavedTab(),
+            _ClaimsTab(postsTabKey: _postsTabKey),
           ],
         ),
       ),
@@ -681,45 +674,7 @@ class _ClaimsTabState extends State<_ClaimsTab> {
       }
     }
   }
-
-
 }
-class _SavedTab extends StatelessWidget {
-  const _SavedTab();
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 3 / 4,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemCount: 6,
-      itemBuilder:
-          (_, i) => ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.network(
-                  'https://picsum.photos/seed/s$i/600/800',
-                  fit: BoxFit.cover,
-                ),
-                const Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Icon(Icons.bookmark, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-    );
-  }
-}
-
-// Settings tab removed from the UI per request.
 
 /// Full-screen profile editor. Returns true when the profile was saved.
 class EditProfilePage extends StatefulWidget {
