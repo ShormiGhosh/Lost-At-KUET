@@ -55,6 +55,71 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     }
   }
+  Future<void> _deleteAccount() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      // Call the database function to delete user
+      await supabase.rpc('delete_user_data');
+
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+
+      // Clear SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('isLoggedIn');
+      await prefs.remove('email');
+
+      // Navigate to login page
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+              (route) => false,
+        );
+      }
+    } catch (error) {
+      print('Error during account deletion: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting account: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+// Add this method after _showSignOutDialog
+  void _showDeleteAccountDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account?'),
+        content: const Text('This action cannot be undone. All your data will be permanently deleted.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteAccount();
+            },
+            child: const Text(
+              'Delete Account',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -97,8 +162,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       const SizedBox(height: 12),
                       _InfoRow(title: 'Version', value: '1.0.0'),
-                      _InfoRow(title: 'Build', value: '2024.1.1'),
-                      _InfoRow(title: 'Last Updated', value: 'Dec 15, 2024'),
+                      _InfoRow(title: 'Build', value: '2025.1.1'),
+                      _InfoRow(title: 'Last Updated', value: 'Oct 11, 2025'),
                     ],
                   ),
                 ),
@@ -106,6 +171,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
               const SizedBox(height: 24),
 
+              // Sign Out Section
               // Sign Out Section
               Card(
                 child: Padding(
@@ -127,6 +193,17 @@ class _SettingsPageState extends State<SettingsPage> {
                         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                         contentPadding: EdgeInsets.zero,
                         onTap: _showSignOutDialog,
+                      ),
+                      // Add this new ListTile for delete account
+                      ListTile(
+                        leading: Icon(Icons.delete_outline, color: Colors.red[600]),
+                        title: const Text(
+                          'Delete Account',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                        contentPadding: EdgeInsets.zero,
+                        onTap: _showDeleteAccountDialog,
                       ),
                     ],
                   ),
@@ -215,7 +292,11 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
+
+
+
 }
+
 
 class _InfoRow extends StatelessWidget {
   final String title;
