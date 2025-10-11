@@ -14,6 +14,9 @@ import 'settings_page.dart';
 import 'chat_screen.dart';
 import 'services/chat_service.dart';
 import 'notifications_page.dart';
+import 'map_picker.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 const _amber = Color(0xFFFFC815); // warm amber
 const _charcoal = Color(0xFF292929); // dark header bg
@@ -222,17 +225,23 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                         ),
                       ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically center
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Image.asset(
                                 'assets/images/lostatkuet_icon.png',
-                                height: 32,
-                                width: 32, // Add explicit width
-                                fit: BoxFit.contain, // Ensure proper scaling
+                                height: 36,
+                                errorBuilder: (_, __, ___) {
+                                  return Icon(
+                                    Icons.location_on,
+                                    size: 36,
+                                    color: _amber,
+                                  );
+                                },
                               ),
-                              const SizedBox(width: 15),
+                              const SizedBox(width: 10),
                               const Text(
                                 'Lost @ KUET',
                                 style: TextStyle(
@@ -245,16 +254,15 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                             ],
                           ),
                           const SizedBox(height: 2),
+                          const _LocRow(),
                         ],
                       ),
                     ),
-                    const Spacer(),
                   ],
                 ),
               ),
             ),
           ),
-
           // Search bar (expands when focused)
           SliverToBoxAdapter(
             child: Container(
@@ -289,7 +297,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                       );
                     },
                     decoration: const InputDecoration(
-                      hintText: 'Search item, place…',
+                      hintText: 'Search item, location, category...',
                       prefixIcon: Icon(Icons.search),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(
@@ -307,10 +315,12 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
           // Toggle + Filters
           SliverToBoxAdapter(
             child: Container(
-              color: _charcoal,
+              color: Color(0xFF292929),
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  const SizedBox(width: 40),
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
@@ -324,7 +334,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                           backgroundColor: WidgetStateProperty.resolveWith(
                             (s) =>
                                 s.contains(WidgetState.selected)
-                                    ? const Color(0xFFFFC815)
+                                    ? Color(0xFFFFC815)
                                     : Colors.white,
                           ),
                           foregroundColor: WidgetStateProperty.all(
@@ -335,15 +345,6 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                         onSelectionChanged:
                             (s) => setState(() => _status = s.first),
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-                  // notifications (fade-in from right)
-                  FadeTransition(
-                    opacity: CurvedAnimation(
-                      parent: _headerCtrl,
-                      curve: const Interval(.3, 1, curve: Curves.easeOut),
                     ),
                   ),
                   SlideTransition(
@@ -373,9 +374,7 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                 ],
               ),
             ),
-          ),
-
-          // Latest posts (staggered)
+          ), // Latest posts (staggered)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -435,6 +434,8 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                       post.status.toLowerCase() == 'lost'
                           ? Colors.red[400]!
                           : Colors.green[400]!,
+                  latitude: post.latitude,
+                  longitude: post.longitude,
                   imageUrl: post.imageUrl,
                   location: post.location,
                   createdAt: post.createdAt,
@@ -456,6 +457,8 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
                                   category: post.category,
                                   createdAt: post.createdAt,
                                   posterId: post.userId,
+                                  latitude: post.latitude,
+                                  longitude: post.longitude,
                                 ),
                               ),
                         ),
@@ -504,6 +507,39 @@ class _HomeEnhancedPageState extends State<HomeEnhancedPage>
   }
 }
 
+class _LocRow extends StatelessWidget {
+  const _LocRow();
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        SizedBox(width: 50),
+        Text(
+          'KUET, Khulna',
+          style: TextStyle(fontSize: 13, color: Colors.white70),
+        ),
+      ],
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  const _Chip(this.label);
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        onSelected: (_) {},
+        selectedColor: _amber.withOpacity(.25),
+        showCheckmark: false,
+      ),
+    );
+  }
+}
+
 class _PostCard extends StatelessWidget {
   final int index;
   final String title;
@@ -511,6 +547,8 @@ class _PostCard extends StatelessWidget {
   final String status;
   final Color chipColor;
   final String location;
+  final double? latitude;
+  final double? longitude;
   final DateTime createdAt;
   final String? imageUrl;
   final String category;
@@ -524,6 +562,8 @@ class _PostCard extends StatelessWidget {
     required this.status,
     required this.chipColor,
     required this.location,
+    this.latitude,
+    this.longitude,
     required this.createdAt,
     this.imageUrl,
     required this.category,
@@ -636,6 +676,47 @@ class _PostCard extends StatelessWidget {
                     style: const TextStyle(color: Colors.black54),
                   ),
                   const SizedBox(height: 8),
+                  // Map thumbnail when coordinates are present
+                  if (latitude != null && longitude != null)
+                    Container(
+                      height: 120,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: FlutterMap(
+                        options: MapOptions(
+                          center: LatLng(latitude!, longitude!),
+                          zoom: 16.0,
+                          interactiveFlags: InteractiveFlag.none,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            subdomains: const ['a', 'b', 'c'],
+                            userAgentPackageName: 'com.example.lostatkuet',
+                          ),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: LatLng(latitude!, longitude!),
+                                width: 36,
+                                height: 36,
+                                builder:
+                                    (_) => const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 28,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       const Icon(
@@ -644,10 +725,28 @@ class _PostCard extends StatelessWidget {
                         color: Colors.black54,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        location,
-                        style: const TextStyle(color: Colors.black54),
+                      Expanded(
+                        child: Text(
+                          location,
+                          style: const TextStyle(color: Colors.black54),
+                        ),
                       ),
+                      if (latitude != null && longitude != null)
+                        IconButton(
+                          icon: const Icon(Icons.map, size: 18),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => MapViewerPage(
+                                      latitude: latitude,
+                                      longitude: longitude,
+                                      title: title,
+                                    ),
+                              ),
+                            );
+                          },
+                        ),
                       const Spacer(),
                       Text(
                         _getTimeAgo(createdAt),
@@ -722,6 +821,8 @@ class _DetailsPage extends StatelessWidget {
   final String status;
   final String location;
   final String category;
+  final double? latitude;
+  final double? longitude;
   final DateTime createdAt;
   final String posterId;
 
@@ -735,6 +836,8 @@ class _DetailsPage extends StatelessWidget {
     required this.category,
     required this.createdAt,
     required this.posterId,
+    this.latitude,
+    this.longitude,
   });
 
   String _getTimeAgo(DateTime dateTime) {
@@ -763,6 +866,24 @@ class _DetailsPage extends StatelessWidget {
         title: const Text('Details'),
         backgroundColor: const Color(0xFF292929),
         foregroundColor: Colors.white,
+        actions: [
+          if (latitude != null && longitude != null)
+            IconButton(
+              icon: const Icon(Icons.map),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder:
+                        (_) => MapViewerPage(
+                          latitude: latitude,
+                          longitude: longitude,
+                          title: title,
+                        ),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: ListView(
         children: [
@@ -1102,6 +1223,8 @@ class _SearchPageState extends State<SearchPage> {
                   ? Colors.red[400]!
                   : Colors.green[400]!,
           location: post.location,
+          latitude: post.latitude,
+          longitude: post.longitude,
           createdAt: post.createdAt,
           imageUrl: post.imageUrl,
           category: post.category,
@@ -1124,6 +1247,8 @@ class _SearchPageState extends State<SearchPage> {
                         category: post.category,
                         createdAt: post.createdAt,
                         posterId: post.userId,
+                        latitude: post.latitude,
+                        longitude: post.longitude,
                       ),
                     ),
               ),

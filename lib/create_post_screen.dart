@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'map_picker.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -21,6 +22,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   String _status = 'Lost';
   String _category = 'Wallet';
   File? _image;
+  double? _latitude;
+  double? _longitude;
+  String? _locationLabel;
   bool _isLoading = false;
   final List<String> _categories = [
     'Wallet',
@@ -31,6 +35,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     'Stationary item',
     'Others'
   ];
+
   Future<void> _submitPost() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -40,9 +45,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         title: _titleController.text,
         description: _descriptionController.text,
         location: _locationController.text,
-        status: _status,  // Changed from isLost
-        category: _category,  // Added
+        status: _status, // Changed from isLost
+        category: _category, // Added
         imagePath: _image?.path,
+        latitude: _latitude,
+        longitude: _longitude,
       );
 
       if (mounted) {
@@ -64,6 +71,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
     }
   }
+
   Future<void> _pickImage() async {
     setState(() => _isLoading = true);
     try {
@@ -96,8 +104,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           SnackBar(content: Text('Error picking image: $e')),
         );
       }
-    }
-    finally {
+    } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -112,135 +119,165 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         backgroundColor: const Color(0xFF292929),
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Image Picker
-              GestureDetector(
-                onTap: _isLoading ? null : _pickImage,
-                child: Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(8),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).viewPadding.bottom + 16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Image Picker
+                GestureDetector(
+                  onTap: _isLoading ? null : _pickImage,
+                  child: Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _image != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(_image!, fit: BoxFit.cover),
+                              )
+                            : const Icon(Icons.add_photo_alternate, size: 50),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _status,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Lost', 'Found'].map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (String? value) {
+                    setState(() => _status = value!);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a title';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Description
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a description';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _category,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _categories.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (String? value) {
+                    setState(() => _category = value!);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _locationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Location',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Where did you lose/find it?';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(_locationLabel ?? 'No pinned location', style: const TextStyle(fontSize: 14)),
+                    ),
+                    TextButton.icon(
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              final result = await Navigator.push<MapPickerResult?>(
+                                context,
+                                MaterialPageRoute(builder: (_) => const MapPickerPage()),
+                              );
+                              if (result != null) {
+                                setState(() {
+                                  _latitude = result.latitude;
+                                  _longitude = result.longitude;
+                                  _locationLabel = result.address;
+                                  _locationController.text = result.address;
+                                });
+                              }
+                            },
+                      icon: const Icon(Icons.map),
+                      label: const Text('Pick on map'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _isLoading
+                      ? null
+                      : _submitPost,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF292929),
+                    foregroundColor: Colors.white,
                   ),
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _image != null
-                      ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(_image!, fit: BoxFit.cover),
-                  )
-                      : const Icon(Icons.add_photo_alternate, size: 50),
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Upload'),
                 ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _status,
-                decoration: const InputDecoration(
-                  labelText: 'Status',
-                  border: OutlineInputBorder(),
-                ),
-                items: ['Lost', 'Found'].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (String? value) {
-                  setState(() => _status = value!);
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Title
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Description
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a description';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _category,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder(),
-                ),
-                items: _categories.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (String? value) {
-                  setState(() => _category = value!);
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _locationController,
-                decoration: const InputDecoration(
-                  labelText: 'Location',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Where did you lose/find it?';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _isLoading
-                    ? null
-                    : _submitPost,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: const Color(0xFF292929),
-                  foregroundColor: Colors.white,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-                    : const Text('Upload'),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

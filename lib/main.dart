@@ -80,7 +80,13 @@ void main() async {
         print('Error handling profile creation: $error');
       }
     }
+    if (event == AuthChangeEvent.passwordRecovery) {
+      print('Password recovery deep link received');
+      // You can add navigation logic here if needed
+      // For example: navigate to a password reset screen
+    }
   });
+
 
   runApp(const MyApp());
 }

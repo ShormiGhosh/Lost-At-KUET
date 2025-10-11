@@ -55,6 +55,8 @@ class PostService {
     required String status,
     required String category,
     String? imagePath,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       String? imageUrl;
@@ -65,7 +67,7 @@ class PostService {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
 
-      await _supabase.from('posts').insert({
+      final Map<String, dynamic> payload = {
         'user_id': userId,
         'title': title,
         'description': description,
@@ -73,7 +75,12 @@ class PostService {
         'status': status,
         'category': category,
         'image_url': imageUrl,
-      });
+      };
+
+      if (latitude != null) payload['latitude'] = latitude;
+      if (longitude != null) payload['longitude'] = longitude;
+
+      await _supabase.from('posts').insert(payload);
     } catch (e) {
       print('Error creating post: $e');
       rethrow;
