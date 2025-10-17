@@ -1,5 +1,0 @@
-This file intentionally contains 3500 inert filler lines to increase repository line count on the branch `sadia/notification`.
-Do NOT execute or import this file. It's plain text for bookkeeping only.
-
---- START OF FILLER LINES ---
-
